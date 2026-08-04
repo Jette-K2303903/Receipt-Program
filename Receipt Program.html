@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Program</title> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        /* ==========================================================
+           [글로벌 스타일 정의] iOS 테마 및 배경 디자인
+           ========================================================== */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
+            background-color: #F0F2F7;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; padding: 20px;
+            box-sizing: border-box; letter-spacing: -0.5px;
+        }
+
+        .app-container {
+            display: flex; width: 100%; max-width: 1200px;
+            height: 85vh; min-height: 600px; gap: 20px;
+        }
+
+        /* ==========================================================
+           좌측 30% 사이드바
+           ========================================================== */
+        .sidebar {
+            flex: 0 0 30%; max-width: 320px; background-color: #FFFFFF;
+            border-radius: 24px; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 35px 25px; box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+
+        .main-logo { font-size: 24px; font-weight: 800; color: #007AFF; margin-bottom: 4px; }
+        .sub-logo { font-size: 13px; color: #8E8E93; font-weight: 500; margin-bottom: 30px; }
+
+        .sidebar-btn {
+            width: 100%; border: none; padding: 16px 20px; border-radius: 14px;
+            font-size: 16px; font-weight: 600; text-align: left; cursor: pointer;
+            display: flex; align-items: center; gap: 12px; transition: all 0.2s;
+            background-color: #F2F2F7; color: #1C1C1E;
+        }
+        .sidebar-btn:hover { background-color: #E5E5EA; }
+        .sidebar-btn.active { background-color: #1C1C1E; color: #FFFFFF; }
+        
+        .sidebar-bottom-group { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+        .sidebar-btn.danger { background-color: #FFF2F2; color: #FF3B30; }
+        .sidebar-btn.danger:hover { background-color: #FFE5E5; }
+        .sidebar-btn.logout { background-color: #F2F2F7; color: #8E8E93; flex: 1; }
+        .sidebar-btn.logout:hover { background-color: #E5E5EA; }
+        
+        .action-row { display: flex; gap: 10px; }
+        .btn-icon {
+            width: 50px; background-color: #F2F2F7; border: none; border-radius: 14px;
+            font-size: 20px; cursor: pointer; transition: 0.2s; display: flex;
+            align-items: center; justify-content: center; color: #1C1C1E;
+        }
+        .btn-icon:hover { background-color: #E5E5EA; }
+
+        /* ==========================================================
+           우측 70% 메인 콘텐츠 영역
+           ========================================================== */
+        .main-content {
+            flex: 1; background-color: #FFFFFF; border-radius: 24px;
+            box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05); padding: 40px;
+            box-sizing: border-box; overflow-y: auto; position: relative;
+        }
+
+        .section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #F2F2F7; padding-bottom: 15px; margin-bottom: 25px;
+        }
+        .section-title { font-size: 22px; font-weight: 700; color: #1C1C1E; margin: 0; display: flex; align-items: center; gap: 10px;}
+        
+        .header-actions { display: flex; gap: 8px; }
+        .btn-sm {
+            padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-sm-success { background-color: #E8F5E9; color: #34C759; }
+        .btn-sm-success:hover { background-color: #C8E6C9; }
+        .btn-sm-danger { background-color: #FFF2F2; color: #FF3B30; }
+        .btn-sm-danger:hover { background-color: #FFE5E5; }
+
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 대시보드 카드 */
+        .dashboard-card {
+            background-color: #007AFF; color: #FFF; border-radius: 16px; padding: 30px;
+            display: flex; flex-direction: column; gap: 10px; box-shadow: 0px 10px 20px rgba(0, 122, 255, 0.2);
+            margin-bottom: 20px; position: relative;
+        }
+        .dashboard-label { font-size: 16px; opacity: 0.9; font-weight: 600; }
+        .dashboard-total { font-size: 40px; font-weight: 800; }
+        .budget-badge {
+            position: absolute; top: 30px; right: 30px; background-color: rgba(255,255,255,0.2);
+            padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+        }
+
+        .category-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .category-card { background-color: #F2F2F7; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+
+        /* 폼 및 설정 UI */
+        .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; text-align: left; }
+        .input-group label { font-size: 14px; font-weight: 600; color: #8E8E93; }
+        .input-box { width: 100%; background-color: #F2F2F7; border: none; border-radius: 12px; padding: 14px; font-size: 16px; color: #1C1C1E; box-sizing: border-box; }
+        select.input-box { appearance: none; cursor: pointer; }
+        textarea.input-box { resize: vertical; min-height: 80px; font-family: monospace; font-size: 12px; line-height: 1.4; white-space: pre; overflow-x: auto; }
+        
+        .upload-zone { border: 2px dashed #007AFF; background-color: #F0F7FF; border-radius: 16px; padding: 40px 20px; text-align: center; color: #007AFF; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 25px; }
+        
+        .expense-card {
+            background-color: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 14px;
+            padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.02);
+        }
+        .expense-amount { font-size: 20px; font-weight: 800; color: #007AFF; }
+
+        .settings-block { background-color: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 16px; padding: 25px; margin-bottom: 20px; }
+        .settings-block h3 { margin-top: 0; font-size: 18px; color: #1C1C1E; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        
+        .btn-modal { width: 100%; border: none; padding: 16px; font-size: 16px; font-weight: 700; border-radius: 12px; cursor: pointer; background-color: #007AFF; color: #FFFFFF; margin-bottom: 8px;}
+        .btn-save { background-color: #1C1C1E; color: #FFFFFF; padding: 14px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; width: 100%; font-size: 15px; }
+
+        /* 모달창 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); justify-content: center; align-items: center; z-index: 999; }
+        .modal-box { background-color: #FFFFFF; width: 90%; max-width: 380px; border-radius: 18px; padding: 35px 25px; box-sizing: border-box; text-align: center; box-shadow: 0px 10px 30px rgba(0,0,0,0.15); }
+        .admin-password-box { width: 100%; background-color: #F2F2F7; border: none; border-radius: 12px; padding: 16px; font-size: 18px; text-align: center; outline: none; box-sizing: border-box; margin-bottom: 20px; font-weight: 600; letter-spacing: 2px; }
+        .btn-modal-close { background-color: #F2F2F7; color: #1C1C1E; }
+
+        .card-list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #E5E5EA; text-align: left; }
+        .card-list-item span { font-weight: 600; font-size: 15px; color: #1C1C1E; }
+        .card-btn { padding: 6px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="app-frame" style="display: none;">
+        
+        <div class="sidebar">
+            <div>
+                <div class="main-logo">Receipt Program</div>
+                <div class="sub-logo">비용 자동등록 시스템</div>
+            </div>
+            
+            <button class="sidebar-btn active" id="menu-dashboard" onclick="switchView('dashboard')">📊 계정별 사용금액</button>
+            <button class="sidebar-btn" id="menu-upload" onclick="switchView('upload')">📸 영수증 업로드</button>
+            <button class="sidebar-btn" id="menu-list" onclick="switchView('list')">📋 비용 정산 목록</button>
+            
+            <div class="sidebar-bottom-group">
+                <button class="sidebar-btn danger" onclick="openResetAuthModal()">🗑️ 데이터 초기화</button>
+                <div class="action-row">
+                    <button class="sidebar-btn logout" onclick="processLogout()">🔒 로그아웃</button>
+                    <button class="btn-icon" id="menu-settings" onclick="switchView('settings')">⚙️</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            
+            <div id="view-dashboard" class="view-section active">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        📊 누적 비용 현황 
+                        <select id="dashboard-month-selector" class="input-box" style="width: 140px; padding: 8px; font-size: 14px;" onchange="updateDashboard()">
+                            <option value="all">전체 (연간)</option>
+                            <option value="1">1월</option>
+                            <option value="2">2월</option>
+                            <option value="3">3월</option>
+                            <option value="4">4월</option>
+                            <option value="5">5월</option>
+                            <option value="6">6월</option>
+                            <option value="7">7월</option>
+                            <option value="8">8월</option>
+                            <option value="9">9월</option>
+                            <option value="10">10월</option>
+                            <option value="11">11월</option>
+                            <option value="12">12월</option>
+                        </select>
+                    </h2>
+                </div>
+                
+                <div class="dashboard-card">
+                    <div class="dashboard-label">센터 예산 총 사용 금액</div>
+                    <div class="dashboard-total" id="dashboard-total-amount">0 원</div>
+                    <div class="budget-badge" id="budget-display">총 센터 예산: 0원</div>
+                </div>
+
+                <h3 style="font-size: 16px; color: #1C1C1E; margin-bottom: 15px;">계정별 세부 예산 및 사용 현황</h3>
+                <div class="category-breakdown-grid" id="category-breakdown-container">
+                    <div class="category-card"><div style="text-align:center; color:#8E8E93; font-size:14px;">설정(⚙️)에서 예산을 먼저 등록해 주세요.</div></div>
+                </div>
+            </div>
+
+            <div id="view-upload" class="view-section">
+                <div class="section-header">
+                    <h2 class="section-title">📸 영수증 업로드</h2>
+                </div>
+                
+                <input type="file" id="receiptInput" accept="image/*" style="display:none;" onchange="startOcrAnalysis(this)">
+                <div class="upload-zone" onclick="document.getElementById('receiptInput').click()">
+                    📸 영수증 이미지 선택 (PC/모바일)
+                </div>
+
+                <div id="result-form" style="display: none;">
+                    <div style="font-size:16px; font-weight:700; margin-bottom:15px; color:#1C1C1E;">✨ AI 인식 결과 확인 및 수정</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div class="input-group"><label>거래 일자</label><input type="date" id="dateValue" class="input-box"></div>
+                        <div class="input-group"><label>거래처명</label><input type="text" id="vendorValue" class="input-box"></div>
+                        <div class="input-group"><label>공급가액 (원)</label><input type="number" id="supplyValue" class="input-box" oninput="calculateTotal()"></div>
+                        <div class="input-group"><label>부가세 (원)</label><input type="number" id="taxValue" class="input-box" oninput="calculateTotal()"></div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+                        <div class="input-group">
+                            <label>결제 카드</label>
+                            <select id="paymentCardValue" class="input-box"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>비용 계정 선택 (예산 연동)</label>
+                            <select id="categoryValue" class="input-box"></select>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-top:15px;"><label style="color:#007AFF;">합계금액 (원)</label><input type="number" id="totalValue" class="input-box" style="font-weight:bold; color:#007AFF;"></div>
+                    
+                    <button class="btn-modal" style="margin-top: 20px;" onclick="addExpenseToList()">장부에 추가하기</button>
+                </div>
+            </div>
+
+            <div id="view-list" class="view-section">
+                <div class="section-header">
+                    <h2 class="section-title">📋 이번 달 비용 정산 목록</h2>
+                    <div class="header-actions">
+                        <button class="btn-sm btn-sm-success" onclick="downloadExcel()">💾 엑셀 다운로드</button>
+                        <button class="btn-sm btn-sm-danger" onclick="openResetAuthModal()">🗑️ 초기화</button>
+                    </div>
+                </div>
+                
+                <div id="expense-list-container">
+                    <div style="text-align:center; padding:50px 20px; color:#8E8E93; background:#F2F2F7; border-radius:12px;" id="empty-state">
+                        등록된 영수증이 없습니다.
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-settings" class="view-section">
+                <div class="section-header">
+                    <h2 class="section-title">⚙️ 시스템 설정 및 관리</h2>
+                </div>
+
+                <div class="settings-block">
+                    <h3>🔒 보안 및 비밀번호 관리</h3>
+                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">보안을 위해 현재 비밀번호는 화면에 표시되지 않습니다. 변경을 원하시면 아래 버튼을 눌러 인증을 진행해 주세요.</p>
+                    <button class="btn-save" style="background-color: #007AFF;" onclick="openAuthForPasswordChange()">비밀번호 인증 및 변경하기</button>
+                </div>
+
+                <div class="settings-block">
+                    <h3>💳 결제 카드 (소지자) 관리</h3>
+                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">영수증 업로드 시 선택할 결제 카드 목록(소지자 및 뒷자리)을 관리합니다.</p>
+                    <button class="btn-save" style="background-color: #1C1C1E;" onclick="openCardManageModal()">결제 카드 관리하기</button>
+                </div>
+
+                <div class="settings-block">
+                    <h3>📂 연도별 배정 예산 및 계정별 항목설정</h3>
+                    <div style="font-size: 13px; color: #8E8E93; margin-top: 0; margin-bottom: 15px; line-height: 1.5;">
+                        <strong style="color:#007AFF;">종합정보[예산 실적 조회]</strong> 양식을 엑셀에서 복사하여 아래에 붙여넣으세요.<br>
+                        (※ A행의 'Jan-26', '1월' 등의 형식을 자동으로 파싱하며, 실적(L열)과 진행중(M열)을 합산하여 사용금액으로 반영합니다.)
+                    </div>
+                    <textarea id="setting-budget" class="input-box" style="height: 120px;" placeholder="엑셀 데이터 영역을 드래그 후 복사하여 여기에 붙여넣기(Ctrl+V) 하세요..."></textarea>
+                    
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                        <button class="btn-save" style="background-color: #34C759; margin-top: 0; flex: 1; min-width: 120px;" onclick="saveBudgetsAndCategories()">예산 적용하기</button>
+                        <button class="btn-save" style="background-color: #FF3B30; margin-top: 0; flex: 1; min-width: 100px;" onclick="resetBudgets()">예산 초기화</button>
+                        <button class="btn-save" style="background-color: #1C1C1E; margin-top: 0; flex: 1; min-width: 120px;" onclick="openCategoryToggleModal()">계정 항목 설정</button>
+                        <button class="btn-save" style="background-color: #8E8E93; margin-top: 0; flex: 1; min-width: 120px;" onclick="openOcrSettingsModal()">네이버 API 설정</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="login-modal" style="display: flex;">
+        <div class="modal-box">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 5px;">시스템 로그인</h2>
+            <p style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">비밀번호를 입력해 주세요.</p>
+            <input type="password" id="login-pwd" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') processLogin()">
+            <button class="btn-modal" onclick="processLogin()">접속하기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="home-modal">
+        <div class="modal-box" style="max-width: 400px; text-align: left;">
+            <div style="font-size: 24px; font-weight: 800; color: #1C1C1E; margin-bottom: 10px;">👋 환영합니다!</div>
+            <p style="font-size: 15px; color: #3A3A3C; line-height: 1.6; margin-bottom: 25px;">
+                밀양센터 비용 관리 시스템에 접속하셨습니다.<br>설정(⚙️) 메뉴에서 예산을 등록하고<br>API를 설정 후 영수증 업로드하시기 바랍니다.
+            </p>
+            <button class="btn-modal" onclick="document.getElementById('home-modal').style.display='none'">작업 시작하기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="reset-modal">
+        <div class="modal-box">
+            <h2 style="color: #FF3B30; margin-top: 0; margin-bottom: 5px;">데이터 초기화</h2>
+            <p style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">초기화 권한 비밀번호를 입력하세요.</p>
+            <input type="password" id="reset-pwd" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') processDataReset()">
+            <button class="btn-modal" style="background-color: #FF3B30;" onclick="processDataReset()">확인 및 삭제</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('reset-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="pwd-auth-modal">
+        <div class="modal-box">
+            <h2 style="color: #1C1C1E; margin-top: 0; margin-bottom: 5px;">보안 인증</h2>
+            <p style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">설정을 변경하려면 <b style="color:#FF3B30;">데이터 초기화 비밀번호</b>를 입력하세요.</p>
+            <input type="password" id="auth-pwd-input" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') confirmAuthForPwdChange()">
+            <button class="btn-modal" onclick="confirmAuthForPwdChange()">인증하기</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('pwd-auth-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="pwd-change-modal">
+        <div class="modal-box">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px;">새 비밀번호 설정</h2>
+            <select id="pwd-target-select" class="input-box" style="margin-bottom: 15px; font-weight: 600;">
+                <option value="login">👉 시스템 접속 로그인 비밀번호 변경</option>
+                <option value="reset">👉 데이터 초기화 권한 비밀번호 변경</option>
+            </select>
+            <div style="text-align:left;">
+                <input type="password" id="pwd-cur-input" class="admin-password-box" placeholder="사용중인 비밀번호" style="margin-bottom: 10px;">
+                <input type="password" id="pwd-new-input1" class="admin-password-box" placeholder="변경할 비밀번호 (1)" style="margin-bottom: 10px;">
+                <input type="password" id="pwd-new-input2" class="admin-password-box" placeholder="변경할 비밀번호 (2)" style="margin-bottom: 20px;">
+            </div>
+            <button class="btn-modal" onclick="executePasswordChange()">변경 저장</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('pwd-change-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="card-manage-modal">
+        <div class="modal-box" style="max-width: 400px;">
+            <h2 style="color: #1C1C1E; margin-top: 0; margin-bottom: 5px;">💳 결제 카드 관리</h2>
+            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 15px;">등록된 카드는 영수증 업로드 시 목록에 표시됩니다.</p>
+            <div id="card-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #E5E5EA; border-radius: 12px; background: #FAFAFC;"></div>
+            <div style="display:flex; gap:8px; margin-bottom: 20px;">
+                <input type="text" id="new-card-name" placeholder="이름" class="input-box" style="padding: 10px; font-size: 14px; flex: 1;">
+                <input type="text" id="new-card-num" placeholder="카드번호" class="input-box" style="padding: 10px; font-size: 14px; width: 100px;">
+                <button class="btn-save" style="margin-top:0; width: 70px; background-color: #007AFF;" onclick="addCard()">추가</button>
+            </div>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('card-manage-modal').style.display='none'">완료 및 닫기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="category-toggle-modal">
+        <div class="modal-box">
+            <h2 style="color: #1C1C1E; margin-top: 0; margin-bottom: 5px;">계정(카테고리) 활성화</h2>
+            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 15px;">체크 해제된 항목은 업로드 및 대시보드에 노출되지 않습니다.</p>
+            <div id="category-toggle-list" style="max-height: 250px; overflow-y: auto; text-align: left; margin-bottom: 20px; border: 1px solid #E5E5EA; padding: 15px; border-radius: 12px;"></div>
+            <button class="btn-modal" onclick="saveCategoryToggles()">적용하기</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('category-toggle-modal').style.display='none'">닫기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="ocr-settings-modal">
+        <div class="modal-box">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 5px;">CLOVA OCR 설정</h2>
+            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 20px;">API 연동을 위한 Key를 입력하세요.</p>
+            <input type="text" id="ocr-url-input" class="input-box" placeholder="Invoke URL" style="margin-bottom: 10px;">
+            <input type="password" id="ocr-secret-input" class="input-box" placeholder="Secret Key" style="margin-bottom: 20px;">
+            <button class="btn-modal" onclick="saveOcrSettings()">저장하기</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('ocr-settings-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loading-modal">
+        <div class="modal-box" style="max-width: 250px;">
+            <div style="font-size: 40px; margin-bottom: 15px;">⚙️</div>
+            <div style="font-weight: 700; color:#1C1C1E; font-size: 16px; margin-bottom: 5px;">AI 영수증 분석 중</div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 데이터 저장소
+        let expenseDataArray = [];
+        let loginPassword = "a13579!!"; 
+        let resetPassword = "a13579~~"; 
+        let monthlyBudgets = {}; 
+        let categoryActiveState = {}; 
+        let cardList = [
+            { name: "홍길동", num: "0000" },
+            { name: "홍길순", num: "1234" }
+        ];
+        let ocrConfig = { url: "", secret: "" };
+
+        let currentReceiptImage = null; 
+
+        // localStorage 저장 로직
+        function saveDataToStorage() {
+            try {
+                localStorage.setItem('expenseDataArray', JSON.stringify(expenseDataArray));
+                localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
+                localStorage.setItem('categoryActiveState', JSON.stringify(categoryActiveState));
+                localStorage.setItem('cardList', JSON.stringify(cardList));
+                localStorage.setItem('ocrConfig', JSON.stringify(ocrConfig));
+                localStorage.setItem('loginPassword', loginPassword);
+                localStorage.setItem('resetPassword', resetPassword);
+            } catch (e) {
+                console.error("Storage Error:", e);
+                alert("브라우저 저장 공간이 부족하여 데이터를 저장하지 못했습니다. 불필요한 데이터를 초기화해 주세요.");
+            }
+        }
+
+        function loadDataFromStorage() {
+            if(localStorage.getItem('expenseDataArray')) expenseDataArray = JSON.parse(localStorage.getItem('expenseDataArray'));
+            if(localStorage.getItem('monthlyBudgets')) monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets'));
+            if(localStorage.getItem('categoryActiveState')) categoryActiveState = JSON.parse(localStorage.getItem('categoryActiveState'));
+            if(localStorage.getItem('cardList')) cardList = JSON.parse(localStorage.getItem('cardList'));
+            if(localStorage.getItem('ocrConfig')) ocrConfig = JSON.parse(localStorage.getItem('ocrConfig'));
+            if(localStorage.getItem('loginPassword')) loginPassword = localStorage.getItem('loginPassword');
+            if(localStorage.getItem('resetPassword')) resetPassword = localStorage.getItem('resetPassword');
+        }
+
+        window.onload = function() {
+            loadDataFromStorage();
+            renderCardManageList(); 
+            updateCategoryDropdowns();
+            
+            if(sessionStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('app-frame').style.display = 'flex';
+                switchView('dashboard');
+                checkAndShowHomePopup();
+            }
+        };
+
+        function processLogin() {
+            const pwdInput = document.getElementById('login-pwd').value;
+            if(pwdInput === loginPassword) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                document.getElementById('login-modal').style.display = 'none';
+                document.getElementById('app-frame').style.display = 'flex';
+                switchView('dashboard');
+                checkAndShowHomePopup();
+            } else {
+                alert("❌ 로그인 비밀번호가 올바르지 않습니다.");
+                document.getElementById('login-pwd').value = "";
+                document.getElementById('login-pwd').focus();
+            }
+        }
+
+        function checkAndShowHomePopup() {
+            if(sessionStorage.getItem('homePopupSeen') !== 'true') {
+                document.getElementById('home-modal').style.display = 'flex';
+                sessionStorage.setItem('homePopupSeen', 'true');
+            }
+        }
+
+        function processLogout() {
+            if(confirm("🔒 정말 로그아웃 하시겠습니까?")) {
+                sessionStorage.removeItem('isLoggedIn');
+                document.getElementById('app-frame').style.display = 'none';
+                document.getElementById('login-pwd').value = "";
+                document.getElementById('login-modal').style.display = 'flex';
+            }
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.sidebar-btn:not(.danger):not(.logout), .btn-icon').forEach(btn => btn.classList.remove('active'));
+            if(document.getElementById('menu-' + viewName)) document.getElementById('menu-' + viewName).classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            
+            if(viewName === 'dashboard') updateDashboard();
+            if(viewName === 'list') renderExpenseList();
+        }
+
+        function getActiveCategories() {
+            return Object.keys(categoryActiveState).filter(cat => categoryActiveState[cat]);
+        }
+
+        function updateDashboard() {
+            const selectedMonth = document.getElementById('dashboard-month-selector').value;
+            const activeCats = getActiveCategories();
+            const breakdownContainer = document.getElementById('category-breakdown-container');
+            breakdownContainer.innerHTML = "";
+
+            if (Object.keys(monthlyBudgets).length === 0 || activeCats.length === 0) {
+                breakdownContainer.innerHTML = `<div class="category-card"><div style="text-align:center; color:#8E8E93; font-size:14px; padding: 20px 0;">활성화된 계정이나 등록된 예산이 없습니다.<br>설정(⚙️) 메뉴를 확인해 주세요.</div></div>`;
+                document.getElementById('dashboard-total-amount').innerText = "0 원";
+                document.getElementById('budget-display').innerText = "총 등록 예산: 0원";
+                return;
+            }
+
+            let globalBudget = 0; let globalUsed = 0;
+            const categoryAggregates = {};
+            activeCats.forEach(cat => categoryAggregates[cat] = { budget: 0, actual: 0, inApp: 0 });
+
+            for (const [monthKey, monthData] of Object.entries(monthlyBudgets)) {
+                if (selectedMonth === 'all' || selectedMonth === monthKey) {
+                    for (const cat of activeCats) {
+                        if (monthData[cat]) {
+                            categoryAggregates[cat].budget += monthData[cat].budget;
+                            categoryAggregates[cat].actual += monthData[cat].actual; 
+                        }
+                    }
+                }
+            }
+
+            expenseDataArray.forEach(item => {
+                const cat = item['비용 계정'];
+                if (activeCats.includes(cat)) {
+                    const itemMonth = item['거래일자'].split('-')[1].replace(/^0+/, ''); 
+                    if (selectedMonth === 'all' || selectedMonth === itemMonth) {
+                        categoryAggregates[cat].inApp += item['합계금액'];
+                    }
+                }
+            });
+
+            activeCats.forEach(catName => {
+                const totalBudget = categoryAggregates[catName].budget;
+                const totalUsed = categoryAggregates[catName].actual + categoryAggregates[catName].inApp;
+                const balance = totalBudget - totalUsed;
+                globalBudget += totalBudget; globalUsed += totalUsed;
+
+                breakdownContainer.innerHTML += `
+                    <div class="category-card" style="padding: 20px;">
+                        <div style="font-size: 16px; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px;">${catName}</div>
+                        <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                            <span style="color:#8E8E93;">예산</span><span style="font-weight:600; color:#1C1C1E;">${totalBudget.toLocaleString()}원</span>
+                        </div>
+                        <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                            <span style="color:#8E8E93;">사용 금액</span><span style="font-weight:600; color:#FF3B30;">${totalUsed.toLocaleString()}원</span>
+                        </div>
+                        <div style="display:flex; justify-content: space-between; font-size: 15px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #E5E5EA;">
+                            <span style="font-weight:700; color:#007AFF;">잔여 금액 (잔액)</span><span style="font-weight:800; color:#007AFF;">${balance.toLocaleString()}원</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const monthText = selectedMonth === 'all' ? "전체" : `${selectedMonth}월`;
+            document.getElementById('dashboard-total-amount').innerText = globalUsed.toLocaleString() + " 원";
+            document.getElementById('budget-display').innerText = `[${monthText}] 총 등록 예산: ${globalBudget.toLocaleString()}원`;
+        }
+
+        function openAuthForPasswordChange() {
+            document.getElementById('auth-pwd-input').value = "";
+            document.getElementById('pwd-auth-modal').style.display = 'flex';
+            document.getElementById('auth-pwd-input').focus();
+        }
+
+        function confirmAuthForPwdChange() {
+            const authInput = document.getElementById('auth-pwd-input').value;
+            if(authInput === resetPassword) {
+                document.getElementById('pwd-auth-modal').style.display = 'none';
+                document.getElementById('pwd-cur-input').value = "";
+                document.getElementById('pwd-new-input1').value = "";
+                document.getElementById('pwd-new-input2').value = "";
+                document.getElementById('pwd-change-modal').style.display = 'flex';
+            } else {
+                alert("❌ 권한 인증 비밀번호가 일치하지 않습니다.");
+                document.getElementById('auth-pwd-input').value = "";
+                document.getElementById('auth-pwd-input').focus();
+            }
+        }
+
+        function executePasswordChange() {
+            const target = document.getElementById('pwd-target-select').value;
+            const curPwd = document.getElementById('pwd-cur-input').value;
+            const newPwd1 = document.getElementById('pwd-new-input1').value;
+            const newPwd2 = document.getElementById('pwd-new-input2').value;
+
+            const expectedCur = (target === 'login') ? loginPassword : resetPassword;
+            if(curPwd !== expectedCur) return alert("❌ 현 비밀번호가 일치하지 않습니다.");
+            if(newPwd1 !== newPwd2) return alert("❌ 변경할 비밀번호 1차와 2차가 일치하지 않습니다.");
+            if(!newPwd1) return alert("❌ 새로운 비밀번호를 입력해 주세요.");
+
+            if(target === 'login') {
+                loginPassword = newPwd1;
+                alert("✅ 로그인 접속 비밀번호가 안전하게 변경되었습니다.");
+            } else {
+                resetPassword = newPwd1;
+                alert("✅ 데이터 초기화 권한 비밀번호가 안전하게 변경되었습니다.");
+            }
+            saveDataToStorage(); 
+            document.getElementById('pwd-change-modal').style.display = 'none';
+        }
+
+        function openCardManageModal() {
+            document.getElementById('new-card-name').value = "";
+            document.getElementById('new-card-num').value = "";
+            document.getElementById('card-manage-modal').style.display = 'flex';
+            renderCardManageList();
+        }
+
+        function renderCardManageList() {
+            const container = document.getElementById('card-list-container');
+            if(cardList.length === 0) {
+                container.innerHTML = `<div style="padding: 20px; text-align:center; color:#8E8E93; font-size:13px;">등록된 카드가 없습니다.</div>`;
+            } else {
+                container.innerHTML = cardList.map((c, i) => `
+                    <div class="card-list-item">
+                        <span>💳 ${c.name} (${c.num})</span>
+                        <div>
+                            <button class="card-btn" style="background:#E8F5E9; color:#34C759;" onclick="editCard(${i})">수정</button>
+                            <button class="card-btn" style="background:#FFF2F2; color:#FF3B30;" onclick="deleteCard(${i})">삭제</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            const uploadSelect = document.getElementById('paymentCardValue');
+            if(uploadSelect) {
+                uploadSelect.innerHTML = cardList.map(c => `<option value="${c.name}(${c.num})">${c.name} (${c.num})</option>`).join('');
+            }
+        }
+
+        function addCard() {
+            const name = document.getElementById('new-card-name').value.trim();
+            const num = document.getElementById('new-card-num').value.trim();
+            if(!name || !num) return alert("이름과 카드번호를 모두 입력해 주세요.");
+            
+            cardList.push({ name, num });
+            saveDataToStorage();
+            document.getElementById('new-card-name').value = "";
+            document.getElementById('new-card-num').value = "";
+            renderCardManageList();
+        }
+
+        function editCard(index) {
+            const current = cardList[index];
+            const newName = prompt("수정할 이름을 입력하세요:", current.name);
+            if(newName === null) return; 
+            const newNum = prompt("수정할 카드번호(4자리)를 입력하세요:", current.num);
+            if(newNum === null) return;
+            
+            if(newName.trim() !== "" && newNum.trim() !== "") {
+                cardList[index] = { name: newName.trim(), num: newNum.trim() };
+                saveDataToStorage();
+                renderCardManageList();
+            }
+        }
+
+        function deleteCard(index) {
+            if(confirm(`'${cardList[index].name}' 카드를 목록에서 삭제하시겠습니까?`)) {
+                cardList.splice(index, 1);
+                saveDataToStorage();
+                renderCardManageList();
+            }
+        }
+
+        function parseExcelMonth(str) {
+            str = str.toLowerCase();
+            const mNames = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+            for(let i=0; i<12; i++) {
+                if(str.includes(mNames[i])) return (i+1).toString();
+            }
+            let num = str.replace(/[^0-9]/g, '');
+            if(num.length > 2 && num.startsWith('20')) {
+                num = parseInt(num.slice(-2), 10).toString();
+            }
+            return parseInt(num, 10).toString();
+        }
+
+        // 예산 맵핑 및 계정 설정 적용
+        function saveBudgetsAndCategories() {
+            const budgetText = document.getElementById('setting-budget').value.trim();
+            if(!budgetText) return alert("엑셀 데이터를 입력(붙여넣기) 해주세요.");
+            
+            const lines = budgetText.split('\n');
+            const newMonthlyBudgets = {};
+            const parsedCategories = new Set();
+            
+            lines.forEach(line => {
+                if(!line.trim()) return;
+                const cols = line.split('\t'); 
+                
+                if(cols.length >= 13) {
+                    const monthRaw = cols[0] ? cols[0].trim() : ""; 
+                    const monthNum = parseExcelMonth(monthRaw); 
+                    
+                    const catName = cols[4] ? cols[4].trim() : "";
+                    const budgetVal = parseInt((cols[10] || "0").replace(/[^0-9-]/g, ''), 10) || 0; 
+                    const actualVal = parseInt((cols[11] || "0").replace(/[^0-9-]/g, ''), 10) || 0; 
+                    const pendingVal = parseInt((cols[12] || "0").replace(/[^0-9-]/g, ''), 10) || 0; 
+                    
+                    if(monthNum && monthNum !== "NaN" && catName && catName !== "계정명") { 
+                        parsedCategories.add(catName);
+                        
+                        if(!newMonthlyBudgets[monthNum]) newMonthlyBudgets[monthNum] = {};
+                        if(!newMonthlyBudgets[monthNum][catName]) newMonthlyBudgets[monthNum][catName] = { budget: 0, actual: 0 };
+                        
+                        newMonthlyBudgets[monthNum][catName].budget += budgetVal;
+                        newMonthlyBudgets[monthNum][catName].actual += (actualVal + pendingVal);
+                    }
+                }
+            });
+            
+            if(parsedCategories.size === 0) return alert("❌ 양식 오류: A열(회계월), E열(계정명), K열(예산), L열(실적), M열(진행중) 데이터를 찾을 수 없습니다.");
+            
+            parsedCategories.forEach(cat => {
+                if(categoryActiveState[cat] === undefined) {
+                    categoryActiveState[cat] = true;
+                }
+            });
+
+            monthlyBudgets = newMonthlyBudgets;
+            saveDataToStorage(); 
+            
+            updateCategoryDropdowns();
+            renderExpenseList();
+            updateDashboard();
+            
+            alert(`✅ 월별 자동 맵핑 성공!\n총 [ ${parsedCategories.size} ]개의 계정과 예산이 연동되었습니다.`);
+            document.getElementById('setting-budget').value = "";
+        }
+
+        // 예산 및 카테고리 데이터만 완전 초기화
+        function resetBudgets() {
+            if(confirm("⚠️ 등록된 센터 예산 데이터를 모두 초기화하시겠습니까?\n(기존 등록된 영수증 내역은 유지되지만 계정 정보가 비활성화 상태로 표시될 수 있습니다.)")) {
+                monthlyBudgets = {};
+                categoryActiveState = {}; 
+                saveDataToStorage();
+                
+                updateCategoryDropdowns();
+                renderExpenseList();
+                updateDashboard();
+                
+                alert("🗑️ 데이터가 초기화되었습니다.");
+            }
+        }
+
+        function openCategoryToggleModal() {
+            const listContainer = document.getElementById('category-toggle-list');
+            listContainer.innerHTML = "";
+            const allCats = Object.keys(categoryActiveState);
+            
+            if(allCats.length === 0) {
+                listContainer.innerHTML = "<p style='color:#8E8E93; font-size:13px; text-align:center;'>맵핑된 계정이 없습니다.</p>";
+            } else {
+                allCats.forEach(cat => {
+                    const isChecked = categoryActiveState[cat] ? "checked" : "";
+                    listContainer.innerHTML += `
+                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:15px; cursor:pointer;">
+                            <input type="checkbox" id="chk-${cat}" value="${cat}" ${isChecked} style="width:18px; height:18px;">
+                            ${cat}
+                        </label>
+                    `;
+                });
+            }
+            document.getElementById('category-toggle-modal').style.display = 'flex';
+        }
+
+        function saveCategoryToggles() {
+            Object.keys(categoryActiveState).forEach(cat => {
+                const checkbox = document.getElementById(`chk-${cat}`);
+                if(checkbox) categoryActiveState[cat] = checkbox.checked;
+            });
+            saveDataToStorage();
+            
+            updateCategoryDropdowns();
+            renderExpenseList();
+            updateDashboard();
+            document.getElementById('category-toggle-modal').style.display = 'none';
+        }
+
+        function updateCategoryDropdowns() {
+            const activeCats = getActiveCategories();
+            const uploadSelect = document.getElementById('categoryValue');
+            if(uploadSelect) {
+                uploadSelect.innerHTML = activeCats.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            }
+        }
+
+        function openOcrSettingsModal() {
+            document.getElementById('ocr-url-input').value = ocrConfig.url || "";
+            document.getElementById('ocr-secret-input').value = ocrConfig.secret || "";
+            document.getElementById('ocr-settings-modal').style.display = 'flex';
+        }
+
+        function saveOcrSettings() {
+            ocrConfig.url = document.getElementById('ocr-url-input').value.trim();
+            ocrConfig.secret = document.getElementById('ocr-secret-input').value.trim();
+            saveDataToStorage();
+            alert("✅ CLOVA OCR API 정보가 저장되었습니다.");
+            document.getElementById('ocr-settings-modal').style.display = 'none';
+        }
+
+        function openResetAuthModal() {
+            document.getElementById('reset-pwd').value = "";
+            document.getElementById('reset-modal').style.display = 'flex';
+            document.getElementById('reset-pwd').focus();
+        }
+
+        function processDataReset() {
+            const inputPwd = document.getElementById('reset-pwd').value;
+            if(inputPwd === resetPassword) {
+                expenseDataArray = [];
+                saveDataToStorage();
+                
+                updateDashboard();
+                renderExpenseList(); 
+                alert("🗑️ 업로드된 정산 데이터가 모두 초기화되었습니다.");
+                document.getElementById('reset-modal').style.display = 'none';
+            } else {
+                alert("❌ 비밀번호가 올바르지 않습니다.");
+                document.getElementById('reset-pwd').value = "";
+            }
+        }
+
+        // 이미지 압축
+        function compressImage(base64Str, maxWidth, callback) {
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                let scale = 1;
+                if(img.width > maxWidth) scale = maxWidth / img.width;
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                callback(canvas.toDataURL('image/jpeg', 0.6));
+            };
+        }
+
+        function startOcrAnalysis(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    compressImage(e.target.result, 800, function(compressedBase64) {
+                        currentReceiptImage = compressedBase64; 
+                        const modal = document.getElementById('loading-modal');
+                        modal.style.display = 'flex';
+                        setTimeout(() => { modal.style.display = 'none'; showResultForm(); }, 1500);
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function showResultForm() {
+            document.getElementById('result-form').style.display = 'block';
+            document.getElementById('dateValue').value = new Date().toISOString().split('T')[0];
+            document.getElementById('vendorValue').value = "스타벅스 강남점";
+            document.getElementById('supplyValue').value = 4091;
+            document.getElementById('taxValue').value = 409;
+            document.getElementById('totalValue').value = 4500;
+            
+            const activeCats = getActiveCategories();
+            if(activeCats.length > 0) document.getElementById('categoryValue').value = activeCats[0];
+            if(cardList.length > 0) document.getElementById('paymentCardValue').value = `${cardList[0].name}(${cardList[0].num})`;
+        }
+
+        function calculateTotal() {
+            const supply = Number(document.getElementById('supplyValue').value) || 0;
+            const tax = Number(document.getElementById('taxValue').value) || 0;
+            document.getElementById('totalValue').value = supply + tax;
+        }
+
+        function addExpenseToList() {
+            const date = document.getElementById('dateValue').value;
+            const vendor = document.getElementById('vendorValue').value.trim();
+            const supply = Number(document.getElementById('supplyValue').value);
+            const tax = Number(document.getElementById('taxValue').value);
+            const total = Number(document.getElementById('totalValue').value);
+            const category = document.getElementById('categoryValue').value;
+            const card = document.getElementById('paymentCardValue').value;
+
+            if(!vendor || !total) return alert("거래처와 합계금액은 필수 입력 사항입니다.");
+
+            expenseDataArray.push({ 
+                "거래일자": date, "거래처명": vendor, "비용 계정": category, 
+                "결제 카드": card, "공급가액": supply, "부가세": tax, "합계금액": total,
+                "이미지": currentReceiptImage 
+            });
+
+            currentReceiptImage = null; 
+            saveDataToStorage();
+            renderExpenseList(); 
+            
+            document.getElementById('receiptInput').value = "";
+            document.getElementById('result-form').style.display = 'none';
+            switchView('list');
+        }
+
+        function updateCategoryInList(index, newCategory) {
+            expenseDataArray[index]['비용 계정'] = newCategory;
+            saveDataToStorage();
+            updateDashboard(); 
+        }
+
+        function renderExpenseList() {
+            const listContainer = document.getElementById('expense-list-container');
+            listContainer.innerHTML = ""; 
+            const activeCats = getActiveCategories();
+
+            if(expenseDataArray.length === 0) {
+                listContainer.innerHTML = `<div style="text-align:center; padding:50px 20px; color:#8E8E93; background:#F2F2F7; border-radius:12px;">등록된 영수증이 없습니다.</div>`;
+                return;
+            }
+
+            expenseDataArray.forEach((item, index) => {
+                let optionsHtml = activeCats.map(cat => `<option value="${cat}" ${item['비용 계정'] === cat ? 'selected' : ''}>${cat}</option>`).join('');
+                if(!activeCats.includes(item['비용 계정'])) {
+                    optionsHtml += `<option value="${item['비용 계정']}" selected>${item['비용 계정']} (비활성화됨)</option>`;
+                }
+
+                const imgIcon = item['이미지'] ? "🖼️ " : "";
+
+                const card = document.createElement('div');
+                card.className = "expense-card";
+                card.innerHTML = `
+                    <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+                        <span style="font-size: 16px; font-weight: 700; color: #1C1C1E;">${imgIcon}${item['거래처명']} <span style="font-size: 12px; color:#8E8E93; font-weight:normal;">/ 💳 ${item['결제 카드']}</span></span>
+                        <span style="font-size: 13px; color: #8E8E93;">${item['거래일자']}</span>
+                        <select class="input-box" style="padding: 6px; font-size: 13px; width: 140px; margin-top: 4px;" onchange="updateCategoryInList(${index}, this.value)">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                    <div class="expense-amount" style="text-align: right;">${item['합계금액'].toLocaleString()}원</div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        async function downloadExcel() {
+            if(expenseDataArray.length === 0) return alert("다운로드할 정산 데이터가 없습니다.");
+
+            const wb = new ExcelJS.Workbook();
+            const today = new Date();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const filename = `${mm}${dd}_비용정리내역.xlsx`;
+
+            const wsMain = wb.addWorksheet("사용내역");
+            wsMain.columns = [
+                { header: '거래일자', key: 'date', width: 12 },
+                { header: '거래처', key: 'vendor', width: 20 },
+                { header: '품명', key: 'item', width: 15 },
+                { header: '단위', key: 'unit', width: 10 },
+                { header: '수량', key: 'qty', width: 8 },
+                { header: '단가', key: 'price', width: 12 },
+                { header: '공급가액', key: 'supply', width: 12 },
+                { header: '부가세', key: 'tax', width: 12 },
+                { header: '금액', key: 'total', width: 15 },
+                { header: '비고', key: 'note', width: 25 },
+                { header: '결제 카드', key: 'card', width: 15 },
+                { header: '계정명', key: 'category', width: 15 }
+            ];
+
+            wsMain.getRow(1).font = { bold: true };
+            const sheetNameCounts = {};
+
+            expenseDataArray.forEach((item) => {
+                let baseName = (item['거래처명'] || "영수증").replace(/[\\/?*[\]:]/g, "_").substring(0, 20);
+                let sheetName = baseName;
+                
+                if (sheetNameCounts[baseName] !== undefined) {
+                    sheetNameCounts[baseName]++;
+                    sheetName = `${baseName}(${sheetNameCounts[baseName]})`;
+                } else {
+                    sheetNameCounts[baseName] = 0;
+                }
+
+                let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
+
+                wsMain.addRow({
+                    date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
+                    qty: 1, price: item['공급가액'], supply: item['공급가액'],
+                    tax: item['부가세'], total: item['합계금액'], note: sheetName,
+                    card: cardName, category: item['비용 계정']
+                });
+
+                const wsIndiv = wb.addWorksheet(sheetName);
+                wsIndiv.getColumn(1).width = 15;
+                wsIndiv.getColumn(2).width = 30;
+
+                wsIndiv.addRow(["[ 항목 ]", "[ 내용 ]"]);
+                wsIndiv.getRow(1).font = { bold: true };
+                wsIndiv.addRow(["거래처", item['거래처명']]);
+                wsIndiv.addRow(["거래일자", item['거래일자']]);
+                wsIndiv.addRow(["결제금액", item['합계금액'].toLocaleString() + "원"]);
+                wsIndiv.addRow(["결제카드", item['결제 카드']]);
+                wsIndiv.addRow(["첨부파일", "↓ 아래 영수증 원본 사진 참조"]);
+                
+                if (item['이미지']) {
+                    const base64Data = item['이미지'].split(',')[1];
+                    const extension = item['이미지'].substring("data:image/".length, item['이미지'].indexOf(";base64"));
+                    
+                    try {
+                        const imageId = wb.addImage({ base64: base64Data, extension: extension });
+                        wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 400, height: 600 } });
+                    } catch (e) { console.error("Image Export Error:", e); }
+                }
+            });
+
+            const buffer = await wb.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), filename);
+        }
+    </script>
+</body>
+</html>
