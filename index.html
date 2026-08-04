@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Receipt Program</title> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -20,7 +20,7 @@
 
         .app-container {
             display: flex; width: 100%; max-width: 1200px;
-            height: 85vh; min-height: 600px; gap: 20px;
+            height: 85vh; min-height: 600px; gap: 20px; position: relative;
         }
 
         /* ==========================================================
@@ -31,6 +31,7 @@
             border-radius: 24px; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05);
             padding: 35px 25px; box-sizing: border-box;
             display: flex; flex-direction: column; gap: 12px;
+            transition: all 0.3s ease;
         }
 
         .main-logo { font-size: 24px; font-weight: 800; color: #007AFF; margin-bottom: 4px; }
@@ -68,16 +69,23 @@
             box-sizing: border-box; overflow-y: auto; position: relative;
         }
 
+        /* 모바일 메뉴 열기 버튼 (기본 숨김) */
+        .mobile-menu-toggle {
+            display: none; background: #007AFF; color: #FFF; border: none;
+            padding: 10px 16px; border-radius: 12px; font-size: 16px; font-weight: 700;
+            cursor: pointer; margin-bottom: 20px; align-items: center; gap: 6px;
+        }
+
         .section-header {
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 2px solid #F2F2F7; padding-bottom: 15px; margin-bottom: 25px;
         }
         .section-title { font-size: 22px; font-weight: 700; color: #1C1C1E; margin: 0; display: flex; align-items: center; gap: 10px;}
         
-        .header-actions { display: flex; gap: 8px; }
+        .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-sm {
             padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px;
-            font-weight: 600; cursor: pointer; transition: 0.2s;
+            font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap;
         }
         .btn-sm-success { background-color: #E8F5E9; color: #34C759; }
         .btn-sm-success:hover { background-color: #C8E6C9; }
@@ -88,16 +96,16 @@
         .view-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* 대시보드 카드 */
+        /* 대시보드 및 리스트 카드 */
         .dashboard-card {
             background-color: #007AFF; color: #FFF; border-radius: 16px; padding: 30px;
             display: flex; flex-direction: column; gap: 10px; box-shadow: 0px 10px 20px rgba(0, 122, 255, 0.2);
             margin-bottom: 20px; position: relative;
         }
         .dashboard-label { font-size: 16px; opacity: 0.9; font-weight: 600; }
-        .dashboard-total { font-size: 40px; font-weight: 800; }
+        .dashboard-total { font-size: 32px; font-weight: 800; word-break: break-all; }
         .budget-badge {
-            position: absolute; top: 30px; right: 30px; background-color: rgba(255,255,255,0.2);
+            position: absolute; top: 20px; right: 20px; background-color: rgba(255,255,255,0.2);
             padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
         }
 
@@ -117,7 +125,7 @@
         .expense-card {
             background-color: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 14px;
             padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between;
-            align-items: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.02);
+            align-items: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.02); flex-wrap: wrap; gap: 15px;
         }
         .expense-amount { font-size: 20px; font-weight: 800; color: #007AFF; }
 
@@ -128,21 +136,76 @@
         .btn-save { background-color: #1C1C1E; color: #FFFFFF; padding: 14px 20px; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; width: 100%; font-size: 15px; }
 
         /* 모달창 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); justify-content: center; align-items: center; z-index: 999; }
-        .modal-box { background-color: #FFFFFF; width: 90%; max-width: 380px; border-radius: 18px; padding: 35px 25px; box-sizing: border-box; text-align: center; box-shadow: 0px 10px 30px rgba(0,0,0,0.15); }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); justify-content: center; align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box; }
+        .modal-box { background-color: #FFFFFF; width: 100%; max-width: 380px; border-radius: 18px; padding: 35px 25px; box-sizing: border-box; text-align: center; box-shadow: 0px 10px 30px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto;}
         .admin-password-box { width: 100%; background-color: #F2F2F7; border: none; border-radius: 12px; padding: 16px; font-size: 18px; text-align: center; outline: none; box-sizing: border-box; margin-bottom: 20px; font-weight: 600; letter-spacing: 2px; }
         .btn-modal-close { background-color: #F2F2F7; color: #1C1C1E; }
 
         .card-list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #E5E5EA; text-align: left; }
         .card-list-item span { font-weight: 600; font-size: 15px; color: #1C1C1E; }
         .card-btn { padding: 6px 10px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+        /* 모바일 사이드바 오버레이 */
+        .sidebar-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.4); z-index: 990; backdrop-filter: blur(3px);
+        }
+
+        /* ==========================================================
+           미디어 쿼리 (태블릿 / 가로모드 최적화 - 1024px 이하)
+           ========================================================== */
+        @media (max-width: 1024px) {
+            .app-container { gap: 15px; padding: 10px; height: 95vh; }
+            .sidebar { padding: 25px 15px; max-width: 260px; }
+            .main-content { padding: 30px; }
+            .dashboard-total { font-size: 28px; }
+        }
+
+        /* ==========================================================
+           미디어 쿼리 (스마트폰 최적화 - 768px 이하)
+           ========================================================== */
+        @media (max-width: 768px) {
+            body { padding: 0; background-color: #FFFFFF; }
+            .app-container { display: block; height: 100vh; min-height: 100vh; padding: 0; }
+            
+            /* 사이드바를 슬라이드 메뉴로 변경 */
+            .sidebar {
+                position: fixed; top: 0; left: -100%; height: 100%;
+                width: 85%; max-width: 320px; z-index: 1000;
+                border-radius: 0 24px 24px 0;
+                box-shadow: 10px 0 30px rgba(0,0,0,0.15);
+            }
+            .sidebar.active-mobile { left: 0; }
+            .sidebar-overlay.active { display: block; }
+
+            /* 메인 화면 꽉 차게 조정 */
+            .main-content {
+                height: 100%; border-radius: 0; box-shadow: none; padding: 20px;
+            }
+
+            .mobile-menu-toggle { display: inline-flex; }
+
+            /* 그리드 및 플렉스 박스 세로 정렬(1열)로 변경 */
+            #result-form > div { grid-template-columns: 1fr !important; gap: 10px !important; }
+            .section-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .header-actions { width: 100%; justify-content: flex-end; }
+            
+            .dashboard-card { padding: 20px; }
+            .budget-badge { position: relative; top: 0; right: 0; align-self: flex-start; margin-bottom: 10px; }
+            .category-breakdown-grid { grid-template-columns: 1fr; }
+            
+            .expense-card { flex-direction: column; align-items: flex-start; }
+            .expense-amount { width: 100%; text-align: left !important; margin-top: 10px; font-size: 22px; }
+        }
     </style>
 </head>
 <body>
 
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileMenu()"></div>
+
     <div class="app-container" id="app-frame" style="display: none;">
         
-        <div class="sidebar">
+        <div class="sidebar" id="app-sidebar">
             <div>
                 <div class="main-logo">Receipt Program</div>
                 <div class="sub-logo">비용 자동등록 시스템</div>
@@ -162,6 +225,9 @@
         </div>
 
         <div class="main-content">
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <span>☰</span> 메뉴 열기
+            </button>
             
             <div id="view-dashboard" class="view-section active">
                 <div class="section-header">
@@ -194,9 +260,9 @@
                 </div>
                 
                 <div class="dashboard-card">
+                    <div class="budget-badge" id="budget-display">총 센터 예산: 0원</div>
                     <div class="dashboard-label">센터 예산 총 사용 금액</div>
                     <div class="dashboard-total" id="dashboard-total-amount">0 원</div>
-                    <div class="budget-badge" id="budget-display">총 센터 예산: 0원</div>
                 </div>
 
                 <h3 style="font-size: 16px; color: #1C1C1E; margin-bottom: 15px;">계정별 세부 예산 및 사용 현황</h3>
@@ -303,10 +369,10 @@
     </div>
 
     <div class="modal-overlay" id="home-modal">
-        <div class="modal-box" style="max-width: 400px; text-align: left;">
+        <div class="modal-box" style="text-align: left;">
             <div style="font-size: 24px; font-weight: 800; color: #1C1C1E; margin-bottom: 10px;">👋 환영합니다!</div>
             <p style="font-size: 15px; color: #3A3A3C; line-height: 1.6; margin-bottom: 25px;">
-                밀양센터 비용 관리 시스템에 접속하셨습니다.<br>설정(⚙️) 메뉴에서 예산을 등록하고<br>API를 설정 후 영수증 업로드하시기 바랍니다.
+                밀양센터 비용 관리 시스템에 접속하셨습니다.<br>설정(⚙️) 메뉴에서 예산을 등록하고<br>API를 설정 후 영수증 업로드하시기 바랍니다.<br><br><strong style="color:#007AFF;">모바일 접속시 가로화면 권장</strong>합니다.
             </p>
             <button class="btn-modal" onclick="document.getElementById('home-modal').style.display='none'">작업 시작하기</button>
         </div>
@@ -350,13 +416,13 @@
     </div>
 
     <div class="modal-overlay" id="card-manage-modal">
-        <div class="modal-box" style="max-width: 400px;">
+        <div class="modal-box">
             <h2 style="color: #1C1C1E; margin-top: 0; margin-bottom: 5px;">💳 결제 카드 관리</h2>
             <p style="font-size: 13px; color: #8E8E93; margin-bottom: 15px;">등록된 카드는 영수증 업로드 시 목록에 표시됩니다.</p>
             <div id="card-list-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #E5E5EA; border-radius: 12px; background: #FAFAFC;"></div>
-            <div style="display:flex; gap:8px; margin-bottom: 20px;">
-                <input type="text" id="new-card-name" placeholder="이름" class="input-box" style="padding: 10px; font-size: 14px; flex: 1;">
-                <input type="text" id="new-card-num" placeholder="카드번호" class="input-box" style="padding: 10px; font-size: 14px; width: 100px;">
+            <div style="display:flex; gap:8px; margin-bottom: 20px; flex-wrap: wrap;">
+                <input type="text" id="new-card-name" placeholder="이름" class="input-box" style="padding: 10px; font-size: 14px; flex: 1; min-width: 100px;">
+                <input type="text" id="new-card-num" placeholder="카드번호" class="input-box" style="padding: 10px; font-size: 14px; width: 100px; flex: none;">
                 <button class="btn-save" style="margin-top:0; width: 70px; background-color: #007AFF;" onclick="addCard()">추가</button>
             </div>
             <button class="btn-modal btn-modal-close" onclick="document.getElementById('card-manage-modal').style.display='none'">완료 및 닫기</button>
@@ -403,8 +469,16 @@
             { name: "홍길순", num: "1234" }
         ];
         let ocrConfig = { url: "", secret: "" };
-
         let currentReceiptImage = null; 
+
+        // [신규] 모바일 메뉴 토글 함수
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            sidebar.classList.toggle('active-mobile');
+            overlay.classList.toggle('active');
+        }
 
         // localStorage 저장 로직
         function saveDataToStorage() {
@@ -485,6 +559,12 @@
             
             if(viewName === 'dashboard') updateDashboard();
             if(viewName === 'list') renderExpenseList();
+
+            // [신규] 모바일 환경일 경우 뷰 이동 시 사이드바 자동 닫기
+            if (window.innerWidth <= 768) {
+                document.getElementById('app-sidebar').classList.remove('active-mobile');
+                document.getElementById('sidebar-overlay').classList.remove('active');
+            }
         }
 
         function getActiveCategories() {
@@ -1019,7 +1099,7 @@
                 const card = document.createElement('div');
                 card.className = "expense-card";
                 card.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+                    <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                         <span style="font-size: 16px; font-weight: 700; color: #1C1C1E;">${imgIcon}${item['거래처명']} <span style="font-size: 12px; color:#8E8E93; font-weight:normal;">/ 💳 ${item['결제 카드']}</span></span>
                         <span style="font-size: 13px; color: #8E8E93;">${item['거래일자']}</span>
                         <select class="input-box" style="padding: 6px; font-size: 13px; width: 140px; margin-top: 4px;" onchange="updateCategoryInList(${index}, this.value)">
