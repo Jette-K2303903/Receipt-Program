@@ -497,7 +497,7 @@
             sidebar.classList.toggle('active');
         }
 
-        // 로컬 스토리지 저장 (예산 데이터 등 캐싱)
+        // 로컬 스토리지 저장 (캐싱 용도)
         function saveDataToStorage() {
             try {
                 localStorage.setItem('cardList', JSON.stringify(cardList));
@@ -559,30 +559,43 @@
             }
         }
 
-        async function saveBudgetsToSupabase() {
+        // 예산 뿐만 아니라 모든 세팅(카드, 비밀번호 등)을 Supabase에 동기화
+        async function syncSettingsToSupabase() {
             try {
                 const { error } = await supabase.from('settings').upsert({
                     id: 1, 
                     monthly_budgets: monthlyBudgets, 
-                    active_categories: categoryActiveState
+                    active_categories: categoryActiveState,
+                    card_list: cardList,
+                    login_password: loginPassword,
+                    reset_password: resetPassword,
+                    ocr_config: ocrConfig
                 });
                 if(error) throw error;
                 saveDataToStorage(); // 로컬에도 즉시 백업
             } catch(e) {
-                console.error("Supabase 예산 저장 오류:", e);
+                console.error("Supabase 설정 저장 오류:", e);
+                // 네트워크 오류 등이 있더라도 로컬에는 적용되도록 보장
+                saveDataToStorage();
             }
         }
 
         async function loadDataFromSupabase() {
             try {
-                // 1. 세팅(예산) 정보 불러오기 (Supabase가 우선)
+                // 1. 세팅 정보 모두 불러오기 (Supabase가 최우선 순위)
                 const { data: settingData, error: settingError } = await supabase.from('settings').select('*').eq('id', 1).single();
                 if (settingData) {
                     monthlyBudgets = settingData.monthly_budgets || monthlyBudgets;
                     categoryActiveState = settingData.active_categories || categoryActiveState;
-                    saveDataToStorage(); // 불러온 최신본을 로컬에 갱신
+                    if(settingData.card_list) cardList = settingData.card_list;
+                    if(settingData.login_password) loginPassword = settingData.login_password;
+                    if(settingData.reset_password) resetPassword = settingData.reset_password;
+                    if(settingData.ocr_config) ocrConfig = settingData.ocr_config;
+                    
+                    saveDataToStorage(); // 불러온 클라우드 최신본을 로컬에 갱신
                 }
                 updateCategoryDropdowns();
+                renderCardManageList(); // 카드 리스트 최신화
 
                 // 2. 영수증 내역 불러오기
                 const { data, error } = await supabase
@@ -608,7 +621,7 @@
                 updateDashboard();
             } catch (error) {
                 console.error("데이터 불러오기 에러:", error);
-                // 에러 발생시 로컬에 있는 데이터를 그대로 사용하여 화면 표기 (문제 2 방어)
+                // 에러 발생시 로컬에 있는 데이터를 그대로 사용하여 화면 표기
                 updateCategoryDropdowns();
                 updateDashboard();
             }
@@ -805,7 +818,7 @@
             document.getElementById('pwd-change-modal').style.display = 'flex';
         }
 
-        function executePasswordChange() {
+        async function executePasswordChange() {
             const target = document.getElementById('pwd-target-select').value;
             const curPwd = document.getElementById('pwd-cur-input').value;
             const newPwd1 = document.getElementById('pwd-new-input1').value;
@@ -823,7 +836,8 @@
                 resetPassword = newPwd1;
                 alert("✅ 권한(초기화/설정) 비밀번호가 변경되었습니다.");
             }
-            saveDataToStorage(); 
+            
+            await syncSettingsToSupabase(); // 변경된 비밀번호 DB 동기화
             document.getElementById('pwd-change-modal').style.display = 'none';
         }
 
@@ -852,18 +866,20 @@
             if(uploadSelect) uploadSelect.innerHTML = cardList.map(c => `<option value="${c.name}(${c.num})">${c.name} (${c.num})</option>`).join('');
         }
 
-        function addCard() {
+        async function addCard() {
             const name = document.getElementById('new-card-name').value.trim();
             const num = document.getElementById('new-card-num').value.trim();
             if(!name || !num) return alert("이름과 카드번호를 모두 입력해 주세요.");
+            
             cardList.push({ name, num });
-            saveDataToStorage();
+            await syncSettingsToSupabase(); // 카드 추가 후 DB 동기화
+            
             document.getElementById('new-card-name').value = "";
             document.getElementById('new-card-num').value = "";
             renderCardManageList();
         }
 
-        function editCard(index) {
+        async function editCard(index) {
             const current = cardList[index];
             const newName = prompt("수정할 이름을 입력하세요:", current.name);
             if(newName === null) return; 
@@ -872,15 +888,15 @@
             
             if(newName.trim() !== "" && newNum.trim() !== "") {
                 cardList[index] = { name: newName.trim(), num: newNum.trim() };
-                saveDataToStorage();
+                await syncSettingsToSupabase(); // 카드 수정 후 DB 동기화
                 renderCardManageList();
             }
         }
 
-        function deleteCard(index) {
+        async function deleteCard(index) {
             if(confirm(`'${cardList[index].name}' 카드를 목록에서 삭제하시겠습니까?`)) {
                 cardList.splice(index, 1);
-                saveDataToStorage();
+                await syncSettingsToSupabase(); // 카드 삭제 후 DB 동기화
                 renderCardManageList();
             }
         }
@@ -937,8 +953,8 @@
 
             monthlyBudgets = newMonthlyBudgets;
             
-            // Supabase에 예산 정보 동기화 (로컬 스토리지도 함께 업데이트)
-            await saveBudgetsToSupabase();
+            // Supabase에 설정값 동기화
+            await syncSettingsToSupabase();
             
             updateCategoryDropdowns();
             renderExpenseList();
@@ -952,7 +968,7 @@
             if(confirm("⚠️ 등록된 센터 예산 데이터를 모두 초기화하시겠습니까?")) {
                 monthlyBudgets = {};
                 categoryActiveState = {}; 
-                await saveBudgetsToSupabase();
+                await syncSettingsToSupabase();
                 
                 updateCategoryDropdowns();
                 renderExpenseList();
@@ -988,7 +1004,7 @@
                 if(checkbox) categoryActiveState[cat] = checkbox.checked;
             });
             
-            await saveBudgetsToSupabase();
+            await syncSettingsToSupabase();
             
             updateCategoryDropdowns();
             renderExpenseList();
@@ -1008,10 +1024,12 @@
             document.getElementById('ocr-settings-modal').style.display = 'flex';
         }
 
-        function saveOcrSettings() {
+        async function saveOcrSettings() {
             ocrConfig.url = document.getElementById('ocr-url-input').value.trim();
             ocrConfig.secret = document.getElementById('ocr-secret-input').value.trim();
-            saveDataToStorage();
+            
+            await syncSettingsToSupabase(); // 설정 저장 시 DB와 동기화
+            
             alert("✅ Google Cloud Vision API 정보가 저장되었습니다.");
             document.getElementById('ocr-settings-modal').style.display = 'none';
         }
