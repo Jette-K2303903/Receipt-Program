@@ -826,7 +826,7 @@
 
                 let labelText = '예산';
                 if (isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all') {
-                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (분기전체)';
+                    labelText = isMonthlyView ? '월 예산' : '분기 예산';
                 }
 
                 breakdownContainer.innerHTML += `
