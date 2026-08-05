@@ -9,8 +9,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
     <style>
         /* ==========================================================
-           [글로벌 스타일 정의] iOS 테마 및 배경 디자인
-           ========================================================== */
+            [글로벌 스타일 정의] iOS 테마 및 배경 디자인
+            ========================================================== */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
             background-color: #F0F2F7;
@@ -25,8 +25,8 @@
         }
 
         /* ==========================================================
-           좌측 30% 사이드바
-           ========================================================== */
+            좌측 30% 사이드바
+            ========================================================== */
         .sidebar {
             flex: 0 0 30%; max-width: 320px; background-color: #FFFFFF;
             border-radius: 24px; box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05);
@@ -62,8 +62,8 @@
         .btn-icon:hover { background-color: #E5E5EA; }
 
         /* ==========================================================
-           우측 70% 메인 콘텐츠 영역
-           ========================================================== */
+            우측 70% 메인 콘텐츠 영역
+            ========================================================== */
         .main-content {
             flex: 1; background-color: #FFFFFF; border-radius: 24px;
             box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.05); padding: 40px;
@@ -435,6 +435,17 @@
                 <button class="btn-save" style="margin-top:0; width: 70px; background-color: #007AFF;" onclick="addCard()">추가</button>
             </div>
             <button class="btn-modal btn-modal-close" onclick="document.getElementById('card-manage-modal').style.display='none'">완료 및 닫기</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="card-edit-modal">
+        <div class="modal-box" style="text-align: left;">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px; text-align: center;">💳 결제 카드 수정</h2>
+            <input type="hidden" id="edit-card-index">
+            <div class="input-group"><label>이름 (소지자)</label><input type="text" id="edit-card-name" class="input-box" placeholder="이름을 입력하세요"></div>
+            <div class="input-group"><label>카드 번호 (뒤 4자리)</label><input type="text" id="edit-card-num" class="input-box" placeholder="카드번호 뒤 4자리"></div>
+            <button class="btn-modal" style="margin-top:10px;" onclick="executeEditCard()">수정 완료</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('card-edit-modal').style.display='none'">취소</button>
         </div>
     </div>
 
@@ -879,18 +890,29 @@
             renderCardManageList();
         }
 
-        async function editCard(index) {
+        function editCard(index) {
             const current = cardList[index];
-            const newName = prompt("수정할 이름을 입력하세요:", current.name);
-            if(newName === null) return; 
-            const newNum = prompt("수정할 카드번호(4자리)를 입력하세요:", current.num);
-            if(newNum === null) return;
-            
-            if(newName.trim() !== "" && newNum.trim() !== "") {
-                cardList[index] = { name: newName.trim(), num: newNum.trim() };
-                await syncSettingsToSupabase(); // 카드 수정 후 DB 동기화
-                renderCardManageList();
+            document.getElementById('edit-card-index').value = index;
+            document.getElementById('edit-card-name').value = current.name;
+            document.getElementById('edit-card-num').value = current.num;
+            document.getElementById('card-edit-modal').style.display = 'flex';
+        }
+
+        async function executeEditCard() {
+            const index = document.getElementById('edit-card-index').value;
+            const newName = document.getElementById('edit-card-name').value.trim();
+            const newNum = document.getElementById('edit-card-num').value.trim();
+
+            if(!newName || !newNum) {
+                return alert("❌ 이름과 카드 번호를 올바르게 입력해주세요.");
             }
+
+            cardList[index] = { name: newName, num: newNum };
+            await syncSettingsToSupabase(); // 카드 수정 후 DB 동기화
+            
+            document.getElementById('card-edit-modal').style.display = 'none';
+            renderCardManageList();
+            alert("✅ 결제 카드가 수정되었습니다.");
         }
 
         async function deleteCard(index) {
