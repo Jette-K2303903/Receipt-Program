@@ -304,7 +304,7 @@
                         </div>
                     </div>
                     
-                    <button class="btn-modal" style="margin-top: 20px;" onclick="addExpenseToList()">추가하기</button>
+                    <button class="btn-modal" style="margin-top: 20px;" onclick="addExpenseToList()">저장하기</button>
                 </div>
             </div>
 
@@ -374,7 +374,7 @@
         <div class="modal-box" style="text-align: left;">
             <div style="font-size: 24px; font-weight: 800; color: #1C1C1E; margin-bottom: 10px;">👋 환영합니다!</div>
             <p style="font-size: 15px; color: #3A3A3C; line-height: 1.6; margin-bottom: 25px;">
-                밀양센터 비용 관리 시스템에 접속하셨습니다.<br>설정(⚙️) 메뉴에서 예산을 등록하고<br>API를 설정 후 영수증 업로드하시기 바랍니다.<br><br><strong style="color:#007AFF;">모바일 접속시 세로화면 권장</strong>합니다.
+                밀양센터 비용 관리 시스템에 접속하셨습니다.<br>📸 영수증 업로드에서 촬영 혹은 이미지를 선택하여<br>확인 후 저장하시기 바랍니다.<br><br><strong style="color:#007AFF;">모바일 접속시 세로화면 권장</strong>합니다.
             </p>
             <button class="btn-modal" onclick="document.getElementById('home-modal').style.display='none'">작업 시작하기</button>
         </div>
@@ -944,7 +944,7 @@
             renderExpenseList();
             updateDashboard();
             
-            alert(`✅ 월별 자동 맵핑 성공!\n총 [ ${parsedCategories.size} ]개의 계정과 예산이 클라우드에 연동되었습니다.`);
+            alert(`✅ 월별 자동 맵핑 성공!\n총 [ ${parsedCategories.size} ]개의 계정과 예산이 등록되었습니다.`);
             document.getElementById('setting-budget').value = "";
         }
 
@@ -1018,7 +1018,7 @@
 
         async function processDataReset() {
             document.getElementById('loading-modal').style.display = 'flex';
-            document.querySelector('#loading-modal div:nth-child(2)').innerText = "클라우드 삭제 중...";
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 삭제 중...";
             
             try {
                 // receipts 테이블의 모든 데이터 삭제 (id가 null이 아닌 모든 열 삭제)
@@ -1028,7 +1028,7 @@
                 expenseDataArray = [];
                 updateDashboard();
                 renderExpenseList(); 
-                alert("🗑️ 클라우드(Supabase)를 포함한 모든 정산 데이터가 초기화되었습니다.");
+                alert("🗑️ 모든 정산 데이터가 초기화되었습니다.");
             } catch (error) {
                 alert("삭제 중 오류가 발생했습니다: " + error.message);
             } finally {
@@ -1153,7 +1153,7 @@
             if(!vendor || total === 0) return alert("거래처와 합계금액은 필수 입력 사항입니다.");
 
             document.getElementById('loading-modal').style.display = 'flex';
-            document.querySelector('#loading-modal div:nth-child(2)').innerText = "클라우드 저장 중...";
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 저장 중...";
 
             try {
                 let imageUrl = "";
@@ -1186,7 +1186,7 @@
 
                 if (error) throw error;
 
-                alert("✅ 성공적으로 클라우드에 등록되었습니다!");
+                alert("✅ 성공적으로 등록되었습니다!");
                 
                 currentReceiptImage = null; 
                 document.getElementById('receiptInputFile').value = "";
@@ -1230,7 +1230,7 @@
         }
 
         async function deleteReceipt(id) {
-            if(!confirm("⚠️ 이 영수증을 목록에서 삭제하시겠습니까?\n(클라우드에서도 영구 삭제됩니다)")) return;
+            if(!confirm("⚠️ 이 영수증을 목록에서 삭제하시겠습니까?")) return;
             
             document.getElementById('loading-modal').style.display = 'flex';
             try {
