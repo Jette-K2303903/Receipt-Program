@@ -823,15 +823,15 @@
                 const balance = totalBudget - totalUsed;
                 
                 const isQuarterly = categoryAggregates[catName].controlType === "분기통제";
-                const isYearly = categoryAggregates[catName].controlType === "년통제";
+                const isYearly = categoryAggregates[catName].controlType === "년　통제";
                 const isMonthlyView = toggleQuarterlyDisplay[catName] === true;
                 
                 // 뱃지 및 클릭 이벤트 동적 생성 (문제 1 반영)
                 let badgeHtml = '';
                 if (isQuarterly) {
-                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월통제' : '분기통제'}</span>`;
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월　통제' : '분기통제'}</span>`;
                 } else if (isYearly) {
-                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월통제' : '년통제'}</span>`;
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월　통제' : '년　통제'}</span>`;
                 }
                 const clickEvent = (isQuarterly || isYearly) ? `onclick="toggleCategoryView('${catName}')" style="cursor:pointer; padding: 20px;"` : `style="padding: 20px;"`;
 
