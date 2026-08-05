@@ -123,8 +123,9 @@
         select.input-box { appearance: none; cursor: pointer; }
         textarea.input-box { resize: vertical; min-height: 80px; font-family: monospace; font-size: 12px; line-height: 1.4; white-space: pre; overflow-x: auto; }
         
-        .upload-zone { border: 2px dashed #007AFF; background-color: #F0F7FF; border-radius: 16px; padding: 40px 20px; text-align: center; color: #007AFF; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 25px; }
-        
+        .upload-zone { border: 2px dashed #007AFF; background-color: #F0F7FF; border-radius: 16px; padding: 40px 20px; text-align: center; color: #007AFF; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 25px; transition: 0.2s;}
+        .upload-zone:hover { background-color: #E0EFFF; }
+
         .expense-card {
             background-color: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 14px;
             padding: 18px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 15px;
@@ -210,7 +211,7 @@
             <button class="sidebar-btn" id="menu-list" onclick="switchView('list')">📋 비용 정산 목록</button>
             
             <div class="sidebar-bottom-group">
-                <button class="sidebar-btn danger" onclick="requireAuth(processDataReset, '데이터 초기화', '모든 정산 데이터를 삭제하려면 비밀번호를 입력하세요.', '#FF3B30')">🗑️ 데이터 초기화</button>
+                <button class="sidebar-btn danger" onclick="openAuthModal(processDataReset, '데이터 초기화', '데이터 초기화 권한 비밀번호를 입력하세요.')">🗑️ 데이터 초기화</button>
                 <div class="action-row">
                     <button class="sidebar-btn logout" onclick="processLogout()">🔒 로그아웃</button>
                     <button class="btn-icon" id="menu-settings" onclick="switchView('settings')">⚙️</button>
@@ -270,9 +271,16 @@
                     <h2 class="section-title">📸 영수증 업로드</h2>
                 </div>
                 
-                <input type="file" id="receiptInput" accept="image/*" capture="environment" style="display:none;" onchange="startOcrAnalysis(this)">
-                <div class="upload-zone" onclick="document.getElementById('receiptInput').click()">
-                    📸 영수증 이미지 선택 (PC/모바일 촬영)
+                <input type="file" id="receiptInputFile" accept="image/*" style="display:none;" onchange="startOcrAnalysis(this)">
+                <input type="file" id="receiptInputCamera" accept="image/*" capture="environment" style="display:none;" onchange="startOcrAnalysis(this)">
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+                    <div class="upload-zone" style="flex:1; margin-bottom: 0; min-width: 200px;" onclick="document.getElementById('receiptInputFile').click()">
+                        📁 이미지 선택 (갤러리)
+                    </div>
+                    <div class="upload-zone" style="flex:1; margin-bottom: 0; min-width: 200px;" onclick="document.getElementById('receiptInputCamera').click()">
+                        📸 사진 촬영 (카메라)
+                    </div>
                 </div>
 
                 <div id="result-form" style="display: none;">
@@ -305,7 +313,7 @@
                     <h2 class="section-title">📋 비용 정산 목록</h2>
                     <div class="header-actions">
                         <button class="btn-sm btn-sm-success" onclick="downloadExcel()">💾 엑셀 다운로드</button>
-                        <button class="btn-sm btn-sm-danger" onclick="requireAuth(processDataReset, '리스트 및 데이터 초기화', '등록된 모든 정산 내역을 삭제합니다.', '#FF3B30')">🗑️ 초기화</button>
+                        <button class="btn-sm btn-sm-danger" onclick="openAuthModal(processDataReset, '목록 전체 삭제', '초기화 권한 비밀번호를 입력하세요.')">🗑️ 초기화</button>
                     </div>
                 </div>
                 
@@ -321,8 +329,10 @@
                     <h2 class="section-title">⚙️ 시스템 설정 및 관리</h2>
                 </div>
 
-                <div class="settings-block" style="display: none;"> <h3>🔒 보안 및 비밀번호 관리</h3>
-                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">시스템은 공통 비밀번호를 사용하도록 통합되었습니다.</p>
+                <div class="settings-block">
+                    <h3>🔒 보안 및 비밀번호 관리</h3>
+                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">보안을 위해 현재 비밀번호는 화면에 표시되지 않습니다. 변경을 원하시면 아래 버튼을 눌러 인증을 진행해 주세요.</p>
+                    <button class="btn-save" style="background-color: #007AFF;" onclick="openAuthModal(openPwdChangeModal, '보안 인증', '설정 변경을 위해 권한 비밀번호를 입력하세요.')">비밀번호 인증 및 변경하기</button>
                 </div>
 
                 <div class="settings-block">
@@ -341,9 +351,9 @@
                     
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
                         <button class="btn-save" style="background-color: #34C759; margin-top: 0; flex: 1; min-width: 120px;" onclick="saveBudgetsAndCategories()">예산 적용하기</button>
-                        <button class="btn-save" style="background-color: #FF3B30; margin-top: 0; flex: 1; min-width: 100px;" onclick="requireAuth(resetBudgets, '예산 초기화', '예산 데이터를 모두 지우려면 비밀번호를 입력하세요.', '#FF3B30')">예산 초기화</button>
-                        <button class="btn-save" style="background-color: #1C1C1E; margin-top: 0; flex: 1; min-width: 120px;" onclick="requireAuth(openCategoryToggleModal, '계정 항목 설정', '계정 활성화를 관리하시려면 비밀번호를 입력하세요.')">계정 항목 설정</button>
-                        <button class="btn-save" style="background-color: #8E8E93; margin-top: 0; flex: 1; min-width: 120px;" onclick="requireAuth(openOcrSettingsModal, 'API 설정', 'Google API Key를 수정하시려면 비밀번호를 입력하세요.')">Google API 설정</button>
+                        <button class="btn-save" style="background-color: #FF3B30; margin-top: 0; flex: 1; min-width: 100px;" onclick="openAuthModal(resetBudgets, '예산 초기화', '예산을 초기화하시려면 권한 비밀번호를 입력하세요.')">예산 초기화</button>
+                        <button class="btn-save" style="background-color: #1C1C1E; margin-top: 0; flex: 1; min-width: 120px;" onclick="openAuthModal(openCategoryToggleModal, '계정 항목 설정', '계정 항목 설정을 위해 권한 비밀번호를 입력하세요.')">계정 항목 설정</button>
+                        <button class="btn-save" style="background-color: #8E8E93; margin-top: 0; flex: 1; min-width: 120px;" onclick="openAuthModal(openOcrSettingsModal, 'Google API 설정', 'API 설정을 위해 권한 비밀번호를 입력하세요.')">Google API 설정</button>
                     </div>
                 </div>
             </div>
@@ -370,49 +380,47 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="unified-auth-modal">
+    <div class="modal-overlay" id="generic-auth-modal">
         <div class="modal-box">
-            <h2 id="auth-title" style="color: #FF3B30; margin-top: 0; margin-bottom: 5px;">보안 인증</h2>
-            <p id="auth-desc" style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">권한 비밀번호를 입력하세요.</p>
-            <input type="password" id="unified-auth-pwd" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') confirmUnifiedAuth()">
-            <button id="auth-confirm-btn" class="btn-modal" style="background-color: #FF3B30;" onclick="confirmUnifiedAuth()">확인 및 진행</button>
-            <button class="btn-modal btn-modal-close" onclick="document.getElementById('unified-auth-modal').style.display='none'">취소</button>
+            <h2 id="generic-auth-title" style="color: #FF3B30; margin-top: 0; margin-bottom: 5px;">권한 인증</h2>
+            <p id="generic-auth-desc" style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">비밀번호를 입력하세요.</p>
+            <input type="password" id="generic-auth-pwd" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') processGenericAuth()">
+            <button class="btn-modal" style="background-color: #FF3B30;" onclick="processGenericAuth()">인증 확인</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('generic-auth-modal').style.display='none'">취소</button>
         </div>
     </div>
 
     <div class="modal-overlay" id="edit-receipt-modal">
-        <div class="modal-box" style="max-width: 420px; text-align: left;">
-            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 20px;">영수증 내역 수정</h2>
+        <div class="modal-box" style="text-align: left;">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px; text-align: center;">영수증 내용 수정</h2>
             <input type="hidden" id="edit-id">
-            
-            <div class="input-group">
-                <label>거래 일자</label>
-                <input type="date" id="edit-date" class="input-box">
+            <div class="input-group"><label>거래 일자</label><input type="date" id="edit-date" class="input-box"></div>
+            <div class="input-group"><label>거래처명</label><input type="text" id="edit-vendor" class="input-box"></div>
+            <div class="input-group"><label style="color:#007AFF;">합계금액 (원)</label><input type="number" id="edit-total" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateEditTotal()"></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <div class="input-group"><label>공급가액 (원)</label><input type="number" id="edit-supply" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+                <div class="input-group"><label>부가세 (원)</label><input type="number" id="edit-tax" class="input-box" readonly style="background-color: #E5E5EA;"></div>
             </div>
-            <div class="input-group">
-                <label>거래처명</label>
-                <input type="text" id="edit-vendor" class="input-box">
+            <p style="font-size: 12px; color: #8E8E93; text-align: center; margin-top: 5px;">*카드 및 사용 계정은 목록 화면에서 변경해주세요.</p>
+            <button class="btn-modal" style="margin-top:10px;" onclick="executeEditReceipt()">수정 완료</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('edit-receipt-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="pwd-change-modal">
+        <div class="modal-box">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px;">새 비밀번호 설정</h2>
+            <select id="pwd-target-select" class="input-box" style="margin-bottom: 15px; font-weight: 600;">
+                <option value="login">👉 시스템 접속 로그인 비밀번호 변경</option>
+                <option value="reset">👉 권한(초기화/설정) 비밀번호 변경</option>
+            </select>
+            <div style="text-align:left;">
+                <input type="password" id="pwd-cur-input" class="admin-password-box" placeholder="사용중인 비밀번호" style="margin-bottom: 10px;">
+                <input type="password" id="pwd-new-input1" class="admin-password-box" placeholder="변경할 비밀번호 (1)" style="margin-bottom: 10px;">
+                <input type="password" id="pwd-new-input2" class="admin-password-box" placeholder="변경할 비밀번호 (2)" style="margin-bottom: 20px;">
             </div>
-            <div class="input-group">
-                <label style="color:#007AFF;">합계금액 (원)</label>
-                <input type="number" id="edit-total" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateEditTax()">
-            </div>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-                <div class="input-group">
-                    <label>공급가액 (원)</label>
-                    <input type="number" id="edit-supply" class="input-box" readonly style="background-color: #E5E5EA;">
-                </div>
-                <div class="input-group">
-                    <label>부가세 (원)</label>
-                    <input type="number" id="edit-tax" class="input-box" readonly style="background-color: #E5E5EA;">
-                </div>
-            </div>
-            
-            <div style="margin-top: 20px; display:flex; gap: 10px;">
-                <button class="btn-modal" onclick="saveReceiptEdit()" style="margin:0; flex:1;">수정 적용</button>
-                <button class="btn-modal btn-modal-close" onclick="document.getElementById('edit-receipt-modal').style.display='none'" style="margin:0; flex:1;">취소</button>
-            </div>
+            <button class="btn-modal" onclick="executePasswordChange()">변경 저장</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('pwd-change-modal').style.display='none'">취소</button>
         </div>
     </div>
 
@@ -461,8 +469,8 @@
     <script>
         // 전역 데이터 저장소
         let expenseDataArray = [];
-        let loginPassword = "a13579~~"; // 공통 암호 적용
-        let resetPassword = "a13579~~"; // 공통 암호 적용
+        let loginPassword = "a13579!!"; 
+        let resetPassword = "a13579~~"; 
         let monthlyBudgets = {}; 
         let categoryActiveState = {}; 
         let cardList = [
@@ -473,8 +481,9 @@
         let ocrConfig = { url: "", secret: "" }; 
         const GOOGLE_API_KEY = "AIzaSyBx1gHLqFe1gYwuEEXtgiB7c3EQKrX605U";
         let currentReceiptImage = null; 
-        
-        let pendingAuthAction = null; // 인증 성공 후 실행할 함수 보관용
+
+        // 통합 권한 인증 콜백 함수 저장
+        let currentAuthAction = null;
 
         // Supabase 연결 설정
         const SUPABASE_URL = 'https://yfnwboangwvwbvifhxdl.supabase.co';
@@ -485,14 +494,17 @@
             const sidebar = document.getElementById('app-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             sidebar.classList.toggle('active-mobile');
-            overlay.classList.toggle('active');
+            sidebar.classList.toggle('active');
         }
 
-        // [이슈 2 해결] 브라우저 LocalStorage에 데이터 동시 보관
+        // 로컬 스토리지 저장 (예산 데이터 등 캐싱)
         function saveDataToStorage() {
             try {
                 localStorage.setItem('cardList', JSON.stringify(cardList));
                 localStorage.setItem('ocrConfig', JSON.stringify(ocrConfig)); 
+                localStorage.setItem('loginPassword', loginPassword);
+                localStorage.setItem('resetPassword', resetPassword);
+                // 모바일/PC 캐시용 예산 데이터 로컬 저장
                 localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
                 localStorage.setItem('categoryActiveState', JSON.stringify(categoryActiveState));
             } catch (e) {
@@ -503,13 +515,16 @@
         function loadDataFromStorage() {
             if(localStorage.getItem('cardList')) cardList = JSON.parse(localStorage.getItem('cardList'));
             if(localStorage.getItem('ocrConfig')) ocrConfig = JSON.parse(localStorage.getItem('ocrConfig'));
+            if(localStorage.getItem('loginPassword')) loginPassword = localStorage.getItem('loginPassword');
+            if(localStorage.getItem('resetPassword')) resetPassword = localStorage.getItem('resetPassword');
+            
             if(localStorage.getItem('monthlyBudgets')) monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets'));
             if(localStorage.getItem('categoryActiveState')) categoryActiveState = JSON.parse(localStorage.getItem('categoryActiveState'));
         }
 
         window.onload = function() {
-            loadDataFromStorage(); // 먼저 LocalStorage 기반으로 화면을 안정적으로 준비
-            loadDataFromSupabase(); // 이후 Supabase와 동기화
+            loadDataFromStorage();
+            loadDataFromSupabase(); // 화면 켜질 때 Supabase 데이터 호출
             
             renderCardManageList(); 
             
@@ -521,8 +536,30 @@
             }
         };
 
+        // 문제 3 통합 권한 인증 모달 열기
+        function openAuthModal(actionCallback, title, desc) {
+            currentAuthAction = actionCallback;
+            document.getElementById('generic-auth-title').innerText = title;
+            document.getElementById('generic-auth-desc').innerText = desc;
+            document.getElementById('generic-auth-pwd').value = "";
+            document.getElementById('generic-auth-modal').style.display = 'flex';
+            document.getElementById('generic-auth-pwd').focus();
+        }
+
+        // 문제 3 통합 권한 인증 처리
+        function processGenericAuth() {
+            const inputPwd = document.getElementById('generic-auth-pwd').value;
+            if(inputPwd === resetPassword) {
+                document.getElementById('generic-auth-modal').style.display = 'none';
+                if (currentAuthAction) currentAuthAction();
+            } else {
+                alert("❌ 비밀번호가 올바르지 않습니다.");
+                document.getElementById('generic-auth-pwd').value = "";
+                document.getElementById('generic-auth-pwd').focus();
+            }
+        }
+
         async function saveBudgetsToSupabase() {
-            saveDataToStorage(); // Supabase에 저장할 때 로컬 스토리지도 동시에 백업
             try {
                 const { error } = await supabase.from('settings').upsert({
                     id: 1, 
@@ -530,6 +567,7 @@
                     active_categories: categoryActiveState
                 });
                 if(error) throw error;
+                saveDataToStorage(); // 로컬에도 즉시 백업
             } catch(e) {
                 console.error("Supabase 예산 저장 오류:", e);
             }
@@ -537,12 +575,12 @@
 
         async function loadDataFromSupabase() {
             try {
-                // 1. 세팅(예산) 정보 불러오기
+                // 1. 세팅(예산) 정보 불러오기 (Supabase가 우선)
                 const { data: settingData, error: settingError } = await supabase.from('settings').select('*').eq('id', 1).single();
                 if (settingData) {
-                    monthlyBudgets = settingData.monthly_budgets || {};
-                    categoryActiveState = settingData.active_categories || {};
-                    saveDataToStorage(); // 불러온 값 다시 안전하게 로컬 저장
+                    monthlyBudgets = settingData.monthly_budgets || monthlyBudgets;
+                    categoryActiveState = settingData.active_categories || categoryActiveState;
+                    saveDataToStorage(); // 불러온 최신본을 로컬에 갱신
                 }
                 updateCategoryDropdowns();
 
@@ -570,37 +608,11 @@
                 updateDashboard();
             } catch (error) {
                 console.error("데이터 불러오기 에러:", error);
+                // 에러 발생시 로컬에 있는 데이터를 그대로 사용하여 화면 표기 (문제 2 방어)
+                updateCategoryDropdowns();
+                updateDashboard();
             }
         }
-
-        // --- 통합 보안 인증 로직 ---
-        function requireAuth(actionFunction, title, desc, btnColor = '#1C1C1E') {
-            pendingAuthAction = actionFunction;
-            document.getElementById('auth-title').innerText = title;
-            document.getElementById('auth-title').style.color = btnColor;
-            document.getElementById('auth-desc').innerText = desc;
-            document.getElementById('auth-confirm-btn').style.backgroundColor = btnColor;
-            
-            document.getElementById('unified-auth-pwd').value = "";
-            document.getElementById('unified-auth-modal').style.display = 'flex';
-            document.getElementById('unified-auth-pwd').focus();
-        }
-
-        function confirmUnifiedAuth() {
-            const inputPwd = document.getElementById('unified-auth-pwd').value;
-            if (inputPwd === resetPassword) {
-                document.getElementById('unified-auth-modal').style.display = 'none';
-                if (pendingAuthAction) {
-                    pendingAuthAction(); // 인증 성공 시 예약된 함수 실행
-                    pendingAuthAction = null;
-                }
-            } else {
-                alert("❌ 비밀번호가 올바르지 않습니다.");
-                document.getElementById('unified-auth-pwd').value = "";
-                document.getElementById('unified-auth-pwd').focus();
-            }
-        }
-        // ---------------------------
 
         function processLogin() {
             const pwdInput = document.getElementById('login-pwd').value;
@@ -757,15 +769,13 @@
 
                 globalBudget += totalBudget; globalUsed += totalUsed;
 
-                // [이슈 5 해결] 9글자 초과 시 폰트 사이즈 조절 기능 추가
-                let catFontSize = '16px';
-                if(catName.length > 9) catFontSize = '12px';
-                if(catName.length > 12) catFontSize = '10px';
+                // 문제 7: 글자 수가 9자가 넘으면 폰트 사이즈를 줄임
+                const titleFontSize = catName.length > 9 ? '12px' : '16px';
 
                 breakdownContainer.innerHTML += `
                     <div class="category-card" style="padding: 20px;">
                         ${badgeHtml}
-                        <div style="font-size: ${catFontSize}; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px; padding-right: 60px; white-space: nowrap; overflow: visible;">${catName}</div>
+                        <div style="font-size: ${titleFontSize}; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px; padding-right: 40px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px;">${catName}</div>
                         <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
                             <span style="color:#8E8E93;">${isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all' ? '예산 (분기전체)' : '예산'}</span>
                             <span style="font-weight:600; color:#1C1C1E;">${totalBudget.toLocaleString()}원</span>
@@ -786,6 +796,35 @@
 
             document.getElementById('dashboard-total-amount').innerText = globalUsed.toLocaleString() + " 원";
             document.getElementById('budget-display').innerText = `[${monthText}] 총 등록 예산: ${globalBudget.toLocaleString()}원`;
+        }
+
+        function openPwdChangeModal() {
+            document.getElementById('pwd-cur-input').value = "";
+            document.getElementById('pwd-new-input1').value = "";
+            document.getElementById('pwd-new-input2').value = "";
+            document.getElementById('pwd-change-modal').style.display = 'flex';
+        }
+
+        function executePasswordChange() {
+            const target = document.getElementById('pwd-target-select').value;
+            const curPwd = document.getElementById('pwd-cur-input').value;
+            const newPwd1 = document.getElementById('pwd-new-input1').value;
+            const newPwd2 = document.getElementById('pwd-new-input2').value;
+
+            const expectedCur = (target === 'login') ? loginPassword : resetPassword;
+            if(curPwd !== expectedCur) return alert("❌ 현 비밀번호가 일치하지 않습니다.");
+            if(newPwd1 !== newPwd2) return alert("❌ 변경할 비밀번호 1차와 2차가 일치하지 않습니다.");
+            if(!newPwd1) return alert("❌ 새로운 비밀번호를 입력해 주세요.");
+
+            if(target === 'login') {
+                loginPassword = newPwd1;
+                alert("✅ 로그인 접속 비밀번호가 변경되었습니다.");
+            } else {
+                resetPassword = newPwd1;
+                alert("✅ 권한(초기화/설정) 비밀번호가 변경되었습니다.");
+            }
+            saveDataToStorage(); 
+            document.getElementById('pwd-change-modal').style.display = 'none';
         }
 
         function openCardManageModal() {
@@ -898,7 +937,7 @@
 
             monthlyBudgets = newMonthlyBudgets;
             
-            // Supabase에 예산 정보 동기화 (로컬 백업도 진행)
+            // Supabase에 예산 정보 동기화 (로컬 스토리지도 함께 업데이트)
             await saveBudgetsToSupabase();
             
             updateCategoryDropdowns();
@@ -910,15 +949,17 @@
         }
 
         async function resetBudgets() {
-            monthlyBudgets = {};
-            categoryActiveState = {}; 
-            await saveBudgetsToSupabase();
-            
-            updateCategoryDropdowns();
-            renderExpenseList();
-            updateDashboard();
-            
-            alert("🗑️ 예산 데이터가 초기화되었습니다.");
+            if(confirm("⚠️ 등록된 센터 예산 데이터를 모두 초기화하시겠습니까?")) {
+                monthlyBudgets = {};
+                categoryActiveState = {}; 
+                await saveBudgetsToSupabase();
+                
+                updateCategoryDropdowns();
+                renderExpenseList();
+                updateDashboard();
+                
+                alert("🗑️ 예산 데이터가 초기화되었습니다.");
+            }
         }
 
         function openCategoryToggleModal() {
@@ -971,7 +1012,7 @@
             ocrConfig.url = document.getElementById('ocr-url-input').value.trim();
             ocrConfig.secret = document.getElementById('ocr-secret-input').value.trim();
             saveDataToStorage();
-            alert("✅ Google Cloud Vision API 정보가 임시 저장되었습니다.");
+            alert("✅ Google Cloud Vision API 정보가 저장되었습니다.");
             document.getElementById('ocr-settings-modal').style.display = 'none';
         }
 
@@ -1017,6 +1058,15 @@
             const tax = total - supply;
             document.getElementById('supplyValue').value = supply;
             document.getElementById('taxValue').value = tax;
+        }
+
+        // 문제 4: 수정 팝업창 내 합계금액 자동계산
+        function calculateEditTotal() {
+            const total = Number(document.getElementById('edit-total').value) || 0;
+            const supply = Math.round(total / 1.1);
+            const tax = total - supply;
+            document.getElementById('edit-supply').value = supply;
+            document.getElementById('edit-tax').value = tax;
         }
 
         function parseGoogleVisionText(rawText) {
@@ -1139,7 +1189,8 @@
                 alert("✅ 성공적으로 클라우드에 등록되었습니다!");
                 
                 currentReceiptImage = null; 
-                document.getElementById('receiptInput').value = "";
+                document.getElementById('receiptInputFile').value = "";
+                document.getElementById('receiptInputCamera').value = "";
                 document.getElementById('result-form').style.display = 'none';
                 
                 await loadDataFromSupabase(); // 화면 갱신
@@ -1166,7 +1217,21 @@
             }
         }
 
-        async function executeDeleteReceipt(id) {
+        async function updateCardInList(index, newCard) {
+            const item = expenseDataArray[index];
+            try {
+                const { error } = await supabase.from('receipts').update({ card: newCard }).eq('id', item.id);
+                if (error) throw error;
+                item['결제 카드'] = newCard;
+                updateDashboard(); 
+            } catch (error) {
+                alert("카드 수정 오류: " + error.message);
+            }
+        }
+
+        async function deleteReceipt(id) {
+            if(!confirm("⚠️ 이 영수증을 목록에서 삭제하시겠습니까?\n(클라우드에서도 영구 삭제됩니다)")) return;
+            
             document.getElementById('loading-modal').style.display = 'flex';
             try {
                 const { error } = await supabase.from('receipts').delete().eq('id', id);
@@ -1179,7 +1244,7 @@
             }
         }
 
-        // [이슈 4 해결] 수정 버튼 클릭 시 띄울 모달 설정
+        // 문제 4: 수정 팝업창 오픈 (prompt 제거)
         function editReceipt(id) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
@@ -1190,29 +1255,26 @@
             document.getElementById('edit-total').value = item['합계금액'];
             document.getElementById('edit-supply').value = item['공급가액'];
             document.getElementById('edit-tax').value = item['부가세'];
-            
+
             document.getElementById('edit-receipt-modal').style.display = 'flex';
         }
 
-        function calculateEditTax() {
-            const total = Number(document.getElementById('edit-total').value) || 0;
-            const supply = Math.round(total / 1.1);
-            const tax = total - supply;
-            document.getElementById('edit-supply').value = supply;
-            document.getElementById('edit-tax').value = tax;
-        }
-
-        async function saveReceiptEdit() {
-            const id = Number(document.getElementById('edit-id').value);
+        // 문제 4: 팝업창 내 데이터 수정 적용
+        async function executeEditReceipt() {
+            const id = document.getElementById('edit-id').value;
             const newDate = document.getElementById('edit-date').value;
             const newVendor = document.getElementById('edit-vendor').value.trim();
-            const newTotal = Number(document.getElementById('edit-total').value) || 0;
-            const newSupply = Number(document.getElementById('edit-supply').value) || 0;
-            const newTax = Number(document.getElementById('edit-tax').value) || 0;
+            const newTotal = Number(document.getElementById('edit-total').value);
+            const newSupply = Number(document.getElementById('edit-supply').value);
+            const newTax = Number(document.getElementById('edit-tax').value);
 
-            if(!newVendor || newTotal === 0) return alert("거래처와 합계금액을 정확히 입력해주세요.");
+            if(!newVendor || isNaN(newTotal) || newTotal === 0) {
+                return alert("❌ 거래처와 합계금액이 올바른지 확인해주세요.");
+            }
 
+            document.getElementById('edit-receipt-modal').style.display = 'none';
             document.getElementById('loading-modal').style.display = 'flex';
+
             try {
                 const { error } = await supabase.from('receipts').update({
                     date: newDate,
@@ -1224,7 +1286,6 @@
 
                 if (error) throw error;
                 await loadDataFromSupabase(); // 갱신
-                document.getElementById('edit-receipt-modal').style.display = 'none';
                 alert("✅ 성공적으로 수정되었습니다.");
             } catch (error) {
                 alert("수정 중 오류가 발생했습니다: " + error.message);
@@ -1244,9 +1305,19 @@
             }
 
             expenseDataArray.forEach((item, index) => {
-                let optionsHtml = activeCats.map(cat => `<option value="${cat}" ${item['비용 계정'] === cat ? 'selected' : ''}>${cat}</option>`).join('');
+                let catOptionsHtml = activeCats.map(cat => `<option value="${cat}" ${item['비용 계정'] === cat ? 'selected' : ''}>${cat}</option>`).join('');
                 if(!activeCats.includes(item['비용 계정'])) {
-                    optionsHtml += `<option value="${item['비용 계정']}" selected>${item['비용 계정']} (비활성화됨)</option>`;
+                    catOptionsHtml += `<option value="${item['비용 계정']}" selected>${item['비용 계정']} (비활성화됨)</option>`;
+                }
+                
+                let cardOptionsHtml = cardList.map(c => {
+                    const val = `${c.name}(${c.num})`;
+                    return `<option value="${val}" ${item['결제 카드'] === val ? 'selected' : ''}>${val}</option>`;
+                }).join('');
+                
+                // 기존 데이터에 저장된 카드가 현재 카드 목록에 없다면 추가
+                if (!cardList.some(c => `${c.name}(${c.num})` === item['결제 카드'])) {
+                    cardOptionsHtml += `<option value="${item['결제 카드']}" selected>${item['결제 카드']} (삭제됨)</option>`;
                 }
 
                 const imgIcon = item['이미지'] ? "🖼️ " : "";
@@ -1256,17 +1327,22 @@
                 card.innerHTML = `
                     <div class="expense-card-top">
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
-                            <span style="font-size: 16px; font-weight: 700; color: #1C1C1E;">${imgIcon}${item['거래처명']} <span style="font-size: 12px; color:#8E8E93; font-weight:normal;">/ 💳 ${item['결제 카드']}</span></span>
+                            <span style="font-size: 16px; font-weight: 700; color: #1C1C1E;">${imgIcon}${item['거래처명']}</span>
                             <span style="font-size: 13px; color: #8E8E93;">${item['거래일자']}</span>
-                            <select class="input-box" style="padding: 6px; font-size: 13px; width: 140px; margin-top: 4px;" onchange="updateCategoryInList(${index}, this.value)">
-                                ${optionsHtml}
-                            </select>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                                <select class="input-box" style="padding: 6px; font-size: 13px; width: 140px;" onchange="updateCategoryInList(${index}, this.value)">
+                                    ${catOptionsHtml}
+                                </select>
+                                <select class="input-box" style="padding: 6px; font-size: 13px; width: 120px;" onchange="updateCardInList(${index}, this.value)">
+                                    ${cardOptionsHtml}
+                                </select>
+                            </div>
                         </div>
                         <div class="expense-amount" style="text-align: right;">${item['합계금액'].toLocaleString()}원</div>
                     </div>
                     <div class="expense-card-bottom">
-                        <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 수정</button>
-                        <button class="btn-sm btn-sm-danger" onclick="requireAuth(() => executeDeleteReceipt(${item.id}), '영수증 삭제', '선택한 영수증 내역을 완전히 삭제합니다.', '#FF3B30')">🗑️ 삭제</button>
+                        <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 내용 수정</button>
+                        <button class="btn-sm btn-sm-danger" onclick="deleteReceipt(${item.id})">🗑️ 삭제</button>
                     </div>
                 `;
                 listContainer.appendChild(card);
