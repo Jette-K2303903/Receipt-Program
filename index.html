@@ -6,6 +6,7 @@
     <title>Receipt Program</title> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
     <style>
         /* ==========================================================
            [글로벌 스타일 정의] iOS 테마 및 배경 디자인
@@ -471,6 +472,12 @@
         let ocrConfig = { url: "", secret: "" };
         let currentReceiptImage = null; 
 
+        // 👇 [여기서부터 추가] Supabase 연결 설정 👇 ★
+        const SUPABASE_URL = 'https://yfnwboangwvwbvifhxdl.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlmbndib2FuZ3d2d2J2aWZoeGRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4MjQ1NTYsImV4cCI6MjEwMTQwMDU1Nn0.ejPNMm2PbTrrVeKENfhH3henzH_U0eByOg3Hv4_zPHo';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 👆 [추가 끝] 👆
+
         // [신규] 모바일 메뉴 토글 함수
         function toggleMobileMenu() {
             const sidebar = document.getElementById('app-sidebar');
@@ -506,8 +513,11 @@
             if(localStorage.getItem('resetPassword')) resetPassword = localStorage.getItem('resetPassword');
         }
 
+        // 👇 [수정] 기존 window.onload 함수 덮어쓰기 👇
         window.onload = function() {
             loadDataFromStorage();
+            loadDataFromSupabase(); // 🌟 화면 켜질 때 Supabase 데이터 호출
+            
             renderCardManageList(); 
             updateCategoryDropdowns();
             
@@ -518,6 +528,36 @@
                 checkAndShowHomePopup();
             }
         };
+
+        // 👇 [추가] Supabase에서 데이터를 불러오는 함수 👇
+        async function loadDataFromSupabase() {
+            try {
+                const { data, error } = await supabase
+                    .from('receipts')
+                    .select('*')
+                    .order('date', { ascending: false });
+
+                if (error) throw error;
+
+                // Supabase 데이터를 기존 HTML 배열 양식에 맞게 변환
+                expenseDataArray = data.map(item => ({
+                    "거래일자": item.date,
+                    "거래처명": item.vendor,
+                    "비용 계정": item.category,
+                    "결제 카드": item.card,
+                    "공급가액": item.supply,
+                    "부가세": item.tax,
+                    "합계금액": item.total,
+                    "이미지": item.image_url // 사진 주소 저장
+                }));
+
+                renderExpenseList();
+                updateDashboard();
+            } catch (error) {
+                console.error("데이터 불러오기 에러:", error);
+            }
+        }
+        // 👆 [추가 끝] 👆
 
         function processLogin() {
             const pwdInput = document.getElementById('login-pwd').value;
@@ -1046,7 +1086,8 @@
             if(cardList.length > 0) document.getElementById('paymentCardValue').value = `${cardList[0].name}(${cardList[0].num})`;
         }
 
-        function addExpenseToList() {
+        // 👇 [수정] 기존 addExpenseToList 함수 전체 덮어쓰기 👇
+        async function addExpenseToList() {
             const date = document.getElementById('dateValue').value;
             const vendor = document.getElementById('vendorValue').value.trim();
             const supply = Number(document.getElementById('supplyValue').value);
@@ -1057,19 +1098,68 @@
 
             if(!vendor || !total) return alert("거래처와 합계금액은 필수 입력 사항입니다.");
 
-            expenseDataArray.push({ 
-                "거래일자": date, "거래처명": vendor, "비용 계정": category, 
-                "결제 카드": card, "공급가액": supply, "부가세": tax, "합계금액": total,
-                "이미지": currentReceiptImage 
-            });
+            // 로딩 화면 표시
+            document.getElementById('loading-modal').style.display = 'flex';
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "클라우드 저장 중...";
 
-            currentReceiptImage = null; 
-            saveDataToStorage();
-            renderExpenseList(); 
-            
-            document.getElementById('receiptInput').value = "";
-            document.getElementById('result-form').style.display = 'none';
-            switchView('list');
+            try {
+                let imageUrl = "";
+
+                // 1. 이미지가 있으면 Supabase Storage에 업로드
+                if (currentReceiptImage) {
+                    const base64Data = currentReceiptImage.split(',')[1];
+                    const byteCharacters = atob(base64Data);
+                    const byteArrays = [];
+                    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                        const slice = byteCharacters.slice(offset, offset + 512);
+                        const byteNumbers = new Array(slice.length);
+                        for (let i = 0; i < slice.length; i++) {
+                            byteNumbers[i] = slice.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        byteArrays.push(byteArray);
+                    }
+                    const blob = new Blob(byteArrays, { type: 'image/jpeg' });
+                    const fileName = Date.now() + '.jpg';
+
+                    const { data: uploadData, error: uploadError } = await supabase
+                        .storage.from('receipt_images').upload(fileName, blob);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicUrlData } = supabase
+                        .storage.from('receipt_images').getPublicUrl(fileName);
+                    
+                    imageUrl = publicUrlData.publicUrl;
+                }
+
+                // 2. 글자 데이터를 Supabase Table에 저장
+                const { data, error } = await supabase
+                    .from('receipts')
+                    .insert([{ 
+                        date: date, vendor: vendor, supply: supply, 
+                        tax: tax, total: total, category: category, 
+                        card: card, image_url: imageUrl 
+                    }]);
+
+                if (error) throw error;
+
+                alert("✅ 성공적으로 클라우드에 등록되었습니다!");
+                
+                currentReceiptImage = null; 
+                document.getElementById('receiptInput').value = "";
+                document.getElementById('result-form').style.display = 'none';
+                
+                await loadDataFromSupabase(); // 화면 갱신
+                switchView('list');
+
+            } catch (error) {
+                console.error("저장 에러:", error);
+                alert("❌ 저장 중 오류가 발생했습니다: " + error.message);
+            } finally {
+                document.getElementById('loading-modal').style.display = 'none';
+                document.querySelector('#loading-modal div:nth-child(2)').innerText = "영수증 분석 중";
+            }
         }
 
         function updateCategoryInList(index, newCategory) {
@@ -1112,79 +1202,104 @@
             });
         }
 
+        // 👇 [통째로 교체] 엑셀 다운로드 시 사진 변환 오류 해결 버전 👇
         async function downloadExcel() {
             if(expenseDataArray.length === 0) return alert("다운로드할 정산 데이터가 없습니다.");
 
-            const wb = new ExcelJS.Workbook();
-            const today = new Date();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const filename = `${mm}${dd}_비용정리내역.xlsx`;
+            // 엑셀 생성 중 로딩 표시
+            document.getElementById('loading-modal').style.display = 'flex';
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "엑셀 파일 생성 중...";
 
-            const wsMain = wb.addWorksheet("사용내역");
-            wsMain.columns = [
-                { header: '거래일자', key: 'date', width: 12 },
-                { header: '거래처', key: 'vendor', width: 20 },
-                { header: '품명', key: 'item', width: 15 },
-                { header: '단위', key: 'unit', width: 10 },
-                { header: '수량', key: 'qty', width: 8 },
-                { header: '단가', key: 'price', width: 12 },
-                { header: '공급가액', key: 'supply', width: 12 },
-                { header: '부가세', key: 'tax', width: 12 },
-                { header: '금액', key: 'total', width: 15 },
-                { header: '비고', key: 'note', width: 25 },
-                { header: '결제 카드', key: 'card', width: 15 },
-                { header: '계정명', key: 'category', width: 15 }
-            ];
+            try {
+                const wb = new ExcelJS.Workbook();
+                const today = new Date();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                const filename = `${mm}${dd}_비용정리내역.xlsx`;
 
-            wsMain.getRow(1).font = { bold: true };
-            const sheetNameCounts = {};
+                const wsMain = wb.addWorksheet("사용내역");
+                wsMain.columns = [
+                    { header: '거래일자', key: 'date', width: 12 },
+                    { header: '거래처', key: 'vendor', width: 20 },
+                    { header: '품명', key: 'item', width: 15 },
+                    { header: '단위', key: 'unit', width: 10 },
+                    { header: '수량', key: 'qty', width: 8 },
+                    { header: '단가', key: 'price', width: 12 },
+                    { header: '공급가액', key: 'supply', width: 12 },
+                    { header: '부가세', key: 'tax', width: 12 },
+                    { header: '금액', key: 'total', width: 15 },
+                    { header: '비고', key: 'note', width: 25 },
+                    { header: '결제 카드', key: 'card', width: 15 },
+                    { header: '계정명', key: 'category', width: 15 }
+                ];
 
-            expenseDataArray.forEach((item) => {
-                let baseName = (item['거래처명'] || "영수증").replace(/[\\/?*[\]:]/g, "_").substring(0, 20);
-                let sheetName = baseName;
-                
-                if (sheetNameCounts[baseName] !== undefined) {
-                    sheetNameCounts[baseName]++;
-                    sheetName = `${baseName}(${sheetNameCounts[baseName]})`;
-                } else {
-                    sheetNameCounts[baseName] = 0;
-                }
+                wsMain.getRow(1).font = { bold: true };
+                const sheetNameCounts = {};
 
-                let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
-
-                wsMain.addRow({
-                    date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
-                    qty: 1, price: item['공급가액'], supply: item['공급가액'],
-                    tax: item['부가세'], total: item['합계금액'], note: sheetName,
-                    card: cardName, category: item['비용 계정']
-                });
-
-                const wsIndiv = wb.addWorksheet(sheetName);
-                wsIndiv.getColumn(1).width = 15;
-                wsIndiv.getColumn(2).width = 30;
-
-                wsIndiv.addRow(["[ 항목 ]", "[ 내용 ]"]);
-                wsIndiv.getRow(1).font = { bold: true };
-                wsIndiv.addRow(["거래처", item['거래처명']]);
-                wsIndiv.addRow(["거래일자", item['거래일자']]);
-                wsIndiv.addRow(["결제금액", item['합계금액'].toLocaleString() + "원"]);
-                wsIndiv.addRow(["결제카드", item['결제 카드']]);
-                wsIndiv.addRow(["첨부파일", "↓ 아래 영수증 원본 사진 참조"]);
-                
-                if (item['이미지']) {
-                    const base64Data = item['이미지'].split(',')[1];
-                    const extension = item['이미지'].substring("data:image/".length, item['이미지'].indexOf(";base64"));
+                // 🚨 forEach 대신 for...of 를 사용해야 인터넷(Supabase)에서 사진을 완벽하게 다운로드할 때까지 기다려줍니다.
+                for (const item of expenseDataArray) {
+                    let baseName = (item['거래처명'] || "영수증").replace(/[\\/?*[\]:]/g, "_").substring(0, 20);
+                    let sheetName = baseName;
                     
-                    try {
-                        const imageId = wb.addImage({ base64: base64Data, extension: extension });
-                        wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 400, height: 600 } });
-                    } catch (e) { console.error("Image Export Error:", e); }
-                }
-            });
+                    if (sheetNameCounts[baseName] !== undefined) {
+                        sheetNameCounts[baseName]++;
+                        sheetName = `${baseName}(${sheetNameCounts[baseName]})`;
+                    } else {
+                        sheetNameCounts[baseName] = 0;
+                    }
 
-            const buffer = await wb.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), filename);
+                    let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
+
+                    wsMain.addRow({
+                        date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
+                        qty: 1, price: item['공급가액'], supply: item['공급가액'],
+                        tax: item['부가세'], total: item['합계금액'], note: sheetName,
+                        card: cardName, category: item['비용 계정']
+                    });
+
+                    const wsIndiv = wb.addWorksheet(sheetName);
+                    wsIndiv.getColumn(1).width = 15;
+                    wsIndiv.getColumn(2).width = 30;
+
+                    wsIndiv.addRow(["[ 항목 ]", "[ 내용 ]"]);
+                    wsIndiv.getRow(1).font = { bold: true };
+                    wsIndiv.addRow(["거래처", item['거래처명']]);
+                    wsIndiv.addRow(["거래일자", item['거래일자']]);
+                    wsIndiv.addRow(["결제금액", item['합계금액'].toLocaleString() + "원"]);
+                    wsIndiv.addRow(["결제카드", item['결제 카드']]);
+                    wsIndiv.addRow(["첨부파일", "↓ 아래 영수증 원본 사진 참조"]);
+                    
+                    // Supabase URL에서 사진 데이터를 다운로드하여 엑셀에 붙여넣기
+                    if (item['이미지']) {
+                        try {
+                            const response = await fetch(item['이미지']);
+                            const blob = await response.blob();
+                            const base64Data = await new Promise((resolve) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.readAsDataURL(blob);
+                            });
+                            
+                            const base64String = base64Data.split(',')[1];
+                            const imageId = wb.addImage({ base64: base64String, extension: 'jpeg' });
+                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 400, height: 600 } });
+                        } catch (e) { 
+                            console.error("Image Export Error:", e); 
+                        }
+                    }
+                } // 반복문 종료
+
+                const buffer = await wb.xlsx.writeBuffer();
+                saveAs(new Blob([buffer]), filename);
+
+            } catch (error) {
+                console.error("엑셀 다운로드 중 오류:", error);
+                alert("엑셀 파일 생성 중 문제가 발생했습니다.");
+            } finally {
+                // 완료 후 로딩 창 닫기
+                document.getElementById('loading-modal').style.display = 'none';
+                document.querySelector('#loading-modal div:nth-child(2)').innerText = "영수증 분석 중";
+            }
         }
     </script>
 </body>
