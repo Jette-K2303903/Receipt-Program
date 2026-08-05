@@ -284,13 +284,13 @@
                 </div>
 
                 <div id="result-form" style="display: none;">
-                    <div style="font-size:16px; font-weight:700; margin-bottom:15px; color:#1C1C1E;">✨ AI 인식 결과 확인 및 수정</div>
+                    <div style="font-size:16px; font-weight:700; margin-bottom:15px; color:#1C1C1E;">✨ 영수증 인식 결과 확인 및 수정</div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                         <div class="input-group"><label>거래 일자</label><input type="date" id="dateValue" class="input-box"></div>
                         <div class="input-group"><label>거래처명</label><input type="text" id="vendorValue" class="input-box"></div>
-                        <div class="input-group"><label style="color:#007AFF;">합계금액 (원)</label><input type="number" id="totalValue" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateFromTotal()" placeholder="금액을 입력해주세요."></div>
-                        <div class="input-group"><label>공급가액 (원)</label><input type="number" id="supplyValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
-                        <div class="input-group"><label>부가세 (원)</label><input type="number" id="taxValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+                        <div class="input-group"><label style="color:#007AFF;">합계금액</label><input type="number" id="totalValue" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateFromTotal()" placeholder="금액을 입력해주세요."></div>
+                        <div class="input-group"><label>공급가액</label><input type="number" id="supplyValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+                        <div class="input-group"><label>부가세</label><input type="number" id="taxValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
                     </div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
@@ -299,7 +299,7 @@
                             <select id="paymentCardValue" class="input-box"></select>
                         </div>
                         <div class="input-group">
-                            <label>비용 계정 선택 (예산 연동)</label>
+                            <label>비용 계정 선택</label>
                             <select id="categoryValue" class="input-box"></select>
                         </div>
                     </div>
@@ -336,7 +336,7 @@
                 </div>
 
                 <div class="settings-block">
-                    <h3>💳 결제 카드 (소지자) 관리</h3>
+                    <h3>💳 결제 카드 관리</h3>
                     <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">영수증 업로드 시 선택할 결제 카드 목록(소지자 및 뒷자리)을 관리합니다.</p>
                     <button class="btn-save" style="background-color: #1C1C1E;" onclick="openCardManageModal()">결제 카드 관리하기</button>
                 </div>
