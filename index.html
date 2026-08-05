@@ -18,7 +18,7 @@
             min-height: 100vh; margin: 0; padding: 20px;
             box-sizing: border-box; letter-spacing: -0.5px;
             
-            /* 문제 1: 텍스트 선택 방지 */
+            /* 텍스트 선택 방지 */
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
@@ -26,7 +26,7 @@
         }
 
         /* 텍스트 입력 창에서는 선택이 가능하도록 예외 처리 */
-        input, textarea {
+        input, textarea, select {
             -webkit-user-select: auto;
             -moz-user-select: auto;
             -ms-user-select: auto;
@@ -128,7 +128,7 @@
 
         .category-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
         .category-card { background-color: #F2F2F7; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 8px; position: relative;}
-        .controlled-badge { position: absolute; top: 20px; right: 20px; font-size: 11px; background: #E8F5E9; color: #34C759; padding: 4px 8px; border-radius: 6px; font-weight: bold; }
+        .controlled-badge { position: absolute; top: 20px; right: 20px; font-size: 11px; background: #E8F5E9; color: #34C759; padding: 4px 8px; border-radius: 6px; font-weight: bold; cursor: pointer; user-select: none; }
 
         /* 폼 및 설정 UI */
         .input-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; text-align: left; }
@@ -303,6 +303,7 @@
                         <div class="input-group"><label>거래 일자</label><input type="date" id="dateValue" class="input-box"></div>
                         <div class="input-group"><label>거래처명</label><input type="text" id="vendorValue" class="input-box"></div>
                         <div class="input-group"><label style="color:#007AFF;">합계금액</label><input type="number" id="totalValue" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateFromTotal()" placeholder="금액을 입력해주세요."></div>
+                        <div class="input-group"><label>비고</label><input type="text" id="noteValue" class="input-box" placeholder="메모를 입력하세요."></div>
                         <div class="input-group"><label>공급가액</label><input type="number" id="supplyValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
                         <div class="input-group"><label>부가세</label><input type="number" id="taxValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
                     </div>
@@ -359,7 +360,7 @@
                     <h3>📂 연도별 배정 예산 및 계정별 항목설정</h3>
                     <div style="font-size: 13px; color: #8E8E93; margin-top: 0; margin-bottom: 15px; line-height: 1.5;">
                         <strong style="color:#007AFF;">종합정보[예산 실적 조회]</strong> 양식을 엑셀에서 복사하여 아래에 붙여넣으세요.<br>
-                        (※ A행의 월 파싱, J행의 '분기통제' 여부를 자동 스캔하여 예산에 반영합니다.)
+                        (※ A행의 월 파싱, J행의 '분기통제' 또는 '년통제' 여부를 자동 스캔하여 예산에 반영합니다.)
                     </div>
                     <textarea id="setting-budget" class="input-box" style="height: 120px;" placeholder="엑셀 데이터 영역을 드래그 후 복사하여 여기에 붙여넣기(Ctrl+V) 하세요..."></textarea>
                     
@@ -415,8 +416,13 @@
                 <div class="input-group"><label>공급가액 (원)</label><input type="number" id="edit-supply" class="input-box" readonly style="background-color: #E5E5EA;"></div>
                 <div class="input-group"><label>부가세 (원)</label><input type="number" id="edit-tax" class="input-box" readonly style="background-color: #E5E5EA;"></div>
             </div>
-            <p style="font-size: 12px; color: #8E8E93; text-align: center; margin-top: 5px;">*카드 및 사용 계정은 목록 화면에서 변경해주세요.</p>
-            <button class="btn-modal" style="margin-top:10px;" onclick="executeEditReceipt()">수정 완료</button>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 10px;">
+                <div class="input-group"><label>비용 계정 선택</label><select id="edit-category" class="input-box"></select></div>
+                <div class="input-group"><label>결제 카드</label><select id="edit-card" class="input-box"></select></div>
+            </div>
+            <div class="input-group"><label>비고</label><input type="text" id="edit-note" class="input-box" placeholder="메모"></div>
+            
+            <button class="btn-modal" style="margin-top:15px;" onclick="executeEditReceipt()">수정 완료</button>
             <button class="btn-modal btn-modal-close" onclick="document.getElementById('edit-receipt-modal').style.display='none'">취소</button>
         </div>
     </div>
@@ -503,7 +509,7 @@
             { name: "홍길순", num: "1234" }
         ];
         
-        // 문제 2: 계정별 분기통제 디스플레이 토글 상태 저장 객체
+        // 문제 1 & 2: 계정별 분기통제 및 년통제 디스플레이 토글 상태 저장 객체
         let toggleQuarterlyDisplay = {};
         
         let ocrConfig = { url: "", secret: "" }; 
@@ -525,14 +531,12 @@
             sidebar.classList.toggle('active');
         }
 
-        // 로컬 스토리지 저장 (캐싱 용도)
         function saveDataToStorage() {
             try {
                 localStorage.setItem('cardList', JSON.stringify(cardList));
                 localStorage.setItem('ocrConfig', JSON.stringify(ocrConfig)); 
                 localStorage.setItem('loginPassword', loginPassword);
                 localStorage.setItem('resetPassword', resetPassword);
-                // 모바일/PC 캐시용 예산 데이터 로컬 저장
                 localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
                 localStorage.setItem('categoryActiveState', JSON.stringify(categoryActiveState));
             } catch (e) {
@@ -564,7 +568,6 @@
             }
         };
 
-        // 통합 권한 인증 모달 열기
         function openAuthModal(actionCallback, title, desc) {
             currentAuthAction = actionCallback;
             document.getElementById('generic-auth-title').innerText = title;
@@ -574,7 +577,6 @@
             document.getElementById('generic-auth-pwd').focus();
         }
 
-        // 통합 권한 인증 처리
         function processGenericAuth() {
             const inputPwd = document.getElementById('generic-auth-pwd').value;
             if(inputPwd === resetPassword) {
@@ -587,13 +589,12 @@
             }
         }
 
-        // 문제 2: 계정 카드 클릭시 월별/분기별 토글 동작
+        // 문제 1: 계정 카드 클릭시 월별/분기별(또는 년별) 토글 동작
         function toggleCategoryView(catName) {
             toggleQuarterlyDisplay[catName] = !toggleQuarterlyDisplay[catName];
             updateDashboard();
         }
 
-        // 예산 뿐만 아니라 모든 세팅(카드, 비밀번호 등)을 Supabase에 동기화
         async function syncSettingsToSupabase() {
             try {
                 const { error } = await supabase.from('settings').upsert({
@@ -606,17 +607,15 @@
                     ocr_config: ocrConfig
                 });
                 if(error) throw error;
-                saveDataToStorage(); // 로컬에도 즉시 백업
+                saveDataToStorage();
             } catch(e) {
                 console.error("Supabase 설정 저장 오류:", e);
-                // 네트워크 오류 등이 있더라도 로컬에는 적용되도록 보장
                 saveDataToStorage();
             }
         }
 
         async function loadDataFromSupabase() {
             try {
-                // 1. 세팅 정보 모두 불러오기 (Supabase가 최우선 순위)
                 const { data: settingData, error: settingError } = await supabase.from('settings').select('*').eq('id', 1).single();
                 if (settingData) {
                     monthlyBudgets = settingData.monthly_budgets || monthlyBudgets;
@@ -626,12 +625,11 @@
                     if(settingData.reset_password) resetPassword = settingData.reset_password;
                     if(settingData.ocr_config) ocrConfig = settingData.ocr_config;
                     
-                    saveDataToStorage(); // 불러온 클라우드 최신본을 로컬에 갱신
+                    saveDataToStorage(); 
                 }
                 updateCategoryDropdowns();
-                renderCardManageList(); // 카드 리스트 최신화
+                renderCardManageList();
 
-                // 2. 영수증 내역 불러오기
                 const { data, error } = await supabase
                     .from('receipts')
                     .select('*')
@@ -648,6 +646,7 @@
                     "공급가액": item.supply,
                     "부가세": item.tax,
                     "합계금액": item.total,
+                    "비고": item.note || "", // 문제 2: 비고 연동
                     "이미지": item.image_url
                 }));
 
@@ -655,7 +654,6 @@
                 updateDashboard();
             } catch (error) {
                 console.error("데이터 불러오기 에러:", error);
-                // 에러 발생시 로컬에 있는 데이터를 그대로 사용하여 화면 표기
                 updateCategoryDropdowns();
                 updateDashboard();
             }
@@ -761,18 +759,23 @@
                 }
             }
 
+            // 예산 합산 로직 (문제 1 반영)
             for (const [monthKey, monthData] of Object.entries(monthlyBudgets)) {
                 const mQuarter = getQuarter(monthKey);
                 for (const cat of activeCats) {
                     if (monthData[cat]) {
                         let shouldInclude = false;
-                        if (selectedPeriod === 'all') shouldInclude = true;
-                        else if (selectedPeriod.startsWith('Q')) {
-                            if (mQuarter === selectedPeriod) shouldInclude = true;
+                        if (selectedPeriod === 'all') {
+                            shouldInclude = true;
+                        } else if (categoryAggregates[cat].controlType === "년통제" && !toggleQuarterlyDisplay[cat]) {
+                            shouldInclude = true; // 년통제는 무조건 년도 전체 포함
+                        } else if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
+                            if (mQuarter === (selectedPeriod.startsWith('Q') ? selectedPeriod : getQuarter(selectedPeriod))) {
+                                shouldInclude = true;
+                            }
                         } else {
-                            // 문제 2: !toggleQuarterlyDisplay[cat] 조건 추가 (토글이 켜져있으면 월별로 간주)
-                            if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
-                                if (mQuarter === getQuarter(selectedPeriod)) shouldInclude = true;
+                            if (selectedPeriod.startsWith('Q')) {
+                                if (mQuarter === selectedPeriod) shouldInclude = true;
                             } else {
                                 if (monthKey === selectedPeriod) shouldInclude = true;
                             }
@@ -786,6 +789,7 @@
                 }
             }
 
+            // 실 사용 금액 합산 로직 (문제 1 반영)
             expenseDataArray.forEach(item => {
                 const cat = item['비용 계정'];
                 if (activeCats.includes(cat) && categoryAggregates[cat]) {
@@ -793,13 +797,17 @@
                     const mQuarter = getQuarter(itemMonth);
                     let shouldInclude = false;
 
-                    if (selectedPeriod === 'all') shouldInclude = true;
-                    else if (selectedPeriod.startsWith('Q')) {
-                        if (mQuarter === selectedPeriod) shouldInclude = true;
+                    if (selectedPeriod === 'all') {
+                        shouldInclude = true;
+                    } else if (categoryAggregates[cat].controlType === "년통제" && !toggleQuarterlyDisplay[cat]) {
+                        shouldInclude = true; 
+                    } else if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
+                        if (mQuarter === (selectedPeriod.startsWith('Q') ? selectedPeriod : getQuarter(selectedPeriod))) {
+                            shouldInclude = true;
+                        }
                     } else {
-                        // 문제 2: !toggleQuarterlyDisplay[cat] 조건 추가
-                        if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
-                            if (mQuarter === getQuarter(selectedPeriod)) shouldInclude = true;
+                        if (selectedPeriod.startsWith('Q')) {
+                            if (mQuarter === selectedPeriod) shouldInclude = true;
                         } else {
                             if (itemMonth === selectedPeriod) shouldInclude = true;
                         }
@@ -813,12 +821,19 @@
                 const totalBudget = categoryAggregates[catName].budget;
                 const totalUsed = categoryAggregates[catName].actual + categoryAggregates[catName].inApp;
                 const balance = totalBudget - totalUsed;
+                
                 const isQuarterly = categoryAggregates[catName].controlType === "분기통제";
+                const isYearly = categoryAggregates[catName].controlType === "년통제";
                 const isMonthlyView = toggleQuarterlyDisplay[catName] === true;
                 
-                // 문제 2: 뱃지 텍스트 동적 렌더링
-                const badgeHtml = isQuarterly ? `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '분기통제'}</span>` : '';
-                const clickEvent = isQuarterly ? `onclick="toggleCategoryView('${catName}')" style="cursor:pointer; padding: 20px;"` : `style="padding: 20px;"`;
+                // 뱃지 및 클릭 이벤트 동적 생성 (문제 1 반영)
+                let badgeHtml = '';
+                if (isQuarterly) {
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '분기통제'}</span>`;
+                } else if (isYearly) {
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '년통제'}</span>`;
+                }
+                const clickEvent = (isQuarterly || isYearly) ? `onclick="toggleCategoryView('${catName}')" style="cursor:pointer; padding: 20px;"` : `style="padding: 20px;"`;
 
                 globalBudget += totalBudget; globalUsed += totalUsed;
 
@@ -826,7 +841,9 @@
 
                 let labelText = '예산';
                 if (isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all') {
-                    labelText = isMonthlyView ? '월 예산' : '분기 예산';
+                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (분기전체)';
+                } else if (isYearly && selectedPeriod !== 'all') {
+                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (연간전체)';
                 }
 
                 breakdownContainer.innerHTML += `
@@ -881,7 +898,7 @@
                 alert("✅ 권한(초기화/설정) 비밀번호가 변경되었습니다.");
             }
             
-            await syncSettingsToSupabase(); // 변경된 비밀번호 DB 동기화
+            await syncSettingsToSupabase(); 
             document.getElementById('pwd-change-modal').style.display = 'none';
         }
 
@@ -916,7 +933,7 @@
             if(!name || !num) return alert("이름과 카드번호를 모두 입력해 주세요.");
             
             cardList.push({ name, num });
-            await syncSettingsToSupabase(); // 카드 추가 후 DB 동기화
+            await syncSettingsToSupabase(); 
             
             document.getElementById('new-card-name').value = "";
             document.getElementById('new-card-num').value = "";
@@ -941,7 +958,7 @@
             }
 
             cardList[index] = { name: newName, num: newNum };
-            await syncSettingsToSupabase(); // 카드 수정 후 DB 동기화
+            await syncSettingsToSupabase(); 
             
             document.getElementById('card-edit-modal').style.display = 'none';
             renderCardManageList();
@@ -951,7 +968,7 @@
         async function deleteCard(index) {
             if(confirm(`'${cardList[index].name}' 카드를 목록에서 삭제하시겠습니까?`)) {
                 cardList.splice(index, 1);
-                await syncSettingsToSupabase(); // 카드 삭제 후 DB 동기화
+                await syncSettingsToSupabase(); 
                 renderCardManageList();
             }
         }
@@ -1008,7 +1025,6 @@
 
             monthlyBudgets = newMonthlyBudgets;
             
-            // Supabase에 설정값 동기화
             await syncSettingsToSupabase();
             
             updateCategoryDropdowns();
@@ -1083,7 +1099,7 @@
             ocrConfig.url = document.getElementById('ocr-url-input').value.trim();
             ocrConfig.secret = document.getElementById('ocr-secret-input').value.trim();
             
-            await syncSettingsToSupabase(); // 설정 저장 시 DB와 동기화
+            await syncSettingsToSupabase(); 
             
             alert("✅ Google Cloud Vision API 정보가 저장되었습니다.");
             document.getElementById('ocr-settings-modal').style.display = 'none';
@@ -1094,7 +1110,6 @@
             document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 삭제 중...";
             
             try {
-                // receipts 테이블의 모든 데이터 삭제 (id가 null이 아닌 모든 열 삭제)
                 const { error } = await supabase.from('receipts').delete().neq('id', 0);
                 if(error) throw error;
 
@@ -1201,6 +1216,7 @@
             document.getElementById('totalValue').value = ""; 
             document.getElementById('supplyValue').value = "";
             document.getElementById('taxValue').value = "";
+            document.getElementById('noteValue').value = ""; // 문제 2: 비고 초기화 추가
             
             const activeCats = getActiveCategories();
             if(activeCats.length > 0) document.getElementById('categoryValue').value = activeCats[0];
@@ -1210,6 +1226,7 @@
         async function addExpenseToList() {
             const date = document.getElementById('dateValue').value;
             const vendor = document.getElementById('vendorValue').value.trim();
+            const note = document.getElementById('noteValue').value.trim(); // 문제 2
             
             const rawSupply = document.getElementById('supplyValue').value.toString().replace(/,/g, '');
             const rawTax = document.getElementById('taxValue').value.toString().replace(/,/g, '');
@@ -1250,10 +1267,11 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
+                // 문제 2: note 저장 연동
                 const { data, error } = await supabase.from('receipts').insert([{ 
                     date: date, vendor: vendor, supply: supply, 
                     tax: tax, total: total, category: category, 
-                    card: card, image_url: imageUrl 
+                    card: card, note: note, image_url: imageUrl 
                 }]);
 
                 if (error) throw error;
@@ -1277,31 +1295,6 @@
             }
         }
 
-        async function updateCategoryInList(index, newCategory) {
-            const item = expenseDataArray[index];
-            try {
-                const { error } = await supabase.from('receipts').update({ category: newCategory }).eq('id', item.id);
-                if (error) throw error;
-                item['비용 계정'] = newCategory;
-                updateDashboard(); 
-            } catch (error) {
-                alert("카테고리 수정 오류: " + error.message);
-            }
-        }
-
-        async function updateCardInList(index, newCard) {
-            const item = expenseDataArray[index];
-            try {
-                const { error } = await supabase.from('receipts').update({ card: newCard }).eq('id', item.id);
-                if (error) throw error;
-                item['결제 카드'] = newCard;
-                updateDashboard(); 
-            } catch (error) {
-                alert("카드 수정 오류: " + error.message);
-            }
-        }
-
-        // 문제 3: 개별 영수증 삭제 시 권한 모달창 띄우도록 수정
         function requestDeleteReceipt(id) {
             openAuthModal(() => executeDeleteReceipt(id), '항목 삭제', '선택한 영수증을 삭제하시려면 비밀번호를 입력하세요.');
         }
@@ -1319,6 +1312,7 @@
             }
         }
 
+        // 문제 3: 수정 기능에서 계정/카드/비고 가져오기
         function editReceipt(id) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
@@ -1329,10 +1323,30 @@
             document.getElementById('edit-total').value = item['합계금액'];
             document.getElementById('edit-supply').value = item['공급가액'];
             document.getElementById('edit-tax').value = item['부가세'];
+            document.getElementById('edit-note').value = item['비고'] || "";
+
+            // 카테고리 셀렉트 세팅
+            const activeCats = getActiveCategories();
+            let catOptionsHtml = activeCats.map(cat => `<option value="${cat}" ${item['비용 계정'] === cat ? 'selected' : ''}>${cat}</option>`).join('');
+            if(!activeCats.includes(item['비용 계정'])) {
+                catOptionsHtml += `<option value="${item['비용 계정']}" selected>${item['비용 계정']} (비활성화됨)</option>`;
+            }
+            document.getElementById('edit-category').innerHTML = catOptionsHtml;
+
+            // 카드 셀렉트 세팅
+            let cardOptionsHtml = cardList.map(c => {
+                const val = `${c.name}(${c.num})`;
+                return `<option value="${val}" ${item['결제 카드'] === val ? 'selected' : ''}>${val}</option>`;
+            }).join('');
+            if (!cardList.some(c => `${c.name}(${c.num})` === item['결제 카드'])) {
+                cardOptionsHtml += `<option value="${item['결제 카드']}" selected>${item['결제 카드']} (삭제됨)</option>`;
+            }
+            document.getElementById('edit-card').innerHTML = cardOptionsHtml;
 
             document.getElementById('edit-receipt-modal').style.display = 'flex';
         }
 
+        // 문제 3: 수정 기능에서 계정/카드/비고 저장하기
         async function executeEditReceipt() {
             const id = document.getElementById('edit-id').value;
             const newDate = document.getElementById('edit-date').value;
@@ -1340,6 +1354,10 @@
             const newTotal = Number(document.getElementById('edit-total').value);
             const newSupply = Number(document.getElementById('edit-supply').value);
             const newTax = Number(document.getElementById('edit-tax').value);
+            
+            const newCategory = document.getElementById('edit-category').value;
+            const newCard = document.getElementById('edit-card').value;
+            const newNote = document.getElementById('edit-note').value.trim();
 
             if(!newVendor || isNaN(newTotal) || newTotal === 0) {
                 return alert("❌ 거래처와 합계금액이 올바른지 확인해주세요.");
@@ -1354,7 +1372,10 @@
                     vendor: newVendor,
                     total: newTotal,
                     supply: newSupply,
-                    tax: newTax
+                    tax: newTax,
+                    category: newCategory,
+                    card: newCard,
+                    note: newNote
                 }).eq('id', id);
 
                 if (error) throw error;
@@ -1367,10 +1388,10 @@
             }
         }
 
+        // 문제 4: 리스트에서 계정/결제카드 영역에 비고 표시되도록 수정
         function renderExpenseList() {
             const listContainer = document.getElementById('expense-list-container');
             listContainer.innerHTML = ""; 
-            const activeCats = getActiveCategories();
 
             if(expenseDataArray.length === 0) {
                 listContainer.innerHTML = `<div style="text-align:center; padding:50px 20px; color:#8E8E93; background:#F2F2F7; border-radius:12px;">등록된 영수증이 없습니다.</div>`;
@@ -1378,21 +1399,6 @@
             }
 
             expenseDataArray.forEach((item, index) => {
-                let catOptionsHtml = activeCats.map(cat => `<option value="${cat}" ${item['비용 계정'] === cat ? 'selected' : ''}>${cat}</option>`).join('');
-                if(!activeCats.includes(item['비용 계정'])) {
-                    catOptionsHtml += `<option value="${item['비용 계정']}" selected>${item['비용 계정']} (비활성화됨)</option>`;
-                }
-                
-                let cardOptionsHtml = cardList.map(c => {
-                    const val = `${c.name}(${c.num})`;
-                    return `<option value="${val}" ${item['결제 카드'] === val ? 'selected' : ''}>${val}</option>`;
-                }).join('');
-                
-                // 기존 데이터에 저장된 카드가 현재 카드 목록에 없다면 추가
-                if (!cardList.some(c => `${c.name}(${c.num})` === item['결제 카드'])) {
-                    cardOptionsHtml += `<option value="${item['결제 카드']}" selected>${item['결제 카드']} (삭제됨)</option>`;
-                }
-
                 const imgIcon = item['이미지'] ? "🖼️ " : "";
 
                 const card = document.createElement('div');
@@ -1401,14 +1407,9 @@
                     <div class="expense-card-top">
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                             <span style="font-size: 16px; font-weight: 700; color: #1C1C1E;">${imgIcon}${item['거래처명']}</span>
-                            <span style="font-size: 13px; color: #8E8E93;">${item['거래일자']}</span>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-                                <select class="input-box" style="padding: 6px; font-size: 13px; width: 140px;" onchange="updateCategoryInList(${index}, this.value)">
-                                    ${catOptionsHtml}
-                                </select>
-                                <select class="input-box" style="padding: 6px; font-size: 13px; width: 120px;" onchange="updateCardInList(${index}, this.value)">
-                                    ${cardOptionsHtml}
-                                </select>
+                            <div style="font-size: 13px; color: #8E8E93;">${item['거래일자']} | ${item['비용 계정']} | ${item['결제 카드']}</div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 14px; color: #555;">
+                                ${item['비고'] ? `<span style="background-color:#F2F2F7; padding:6px 10px; border-radius:8px;">📝 ${item['비고']}</span>` : '&nbsp;'}
                             </div>
                         </div>
                         <div class="expense-amount" style="text-align: right;">${item['합계금액'].toLocaleString()}원</div>
@@ -1470,7 +1471,7 @@
                     wsMain.addRow({
                         date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
                         qty: 1, price: item['공급가액'], supply: item['공급가액'],
-                        tax: item['부가세'], total: item['합계금액'], note: sheetName,
+                        tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName, // 비고 데이터 적용
                         card: cardName, category: item['비용 계정']
                     });
 
