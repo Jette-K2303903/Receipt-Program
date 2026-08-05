@@ -123,7 +123,8 @@
         select.input-box { appearance: none; cursor: pointer; }
         textarea.input-box { resize: vertical; min-height: 80px; font-family: monospace; font-size: 12px; line-height: 1.4; white-space: pre; overflow-x: auto; }
         
-        .upload-zone { border: 2px dashed #007AFF; background-color: #F0F7FF; border-radius: 16px; padding: 40px 20px; text-align: center; color: #007AFF; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 25px; }
+        .upload-zone { border: 2px dashed #007AFF; background-color: #F0F7FF; border-radius: 16px; padding: 40px 20px; text-align: center; color: #007AFF; font-weight: 600; font-size: 16px; cursor: pointer; margin-bottom: 25px; transition: 0.2s;}
+        .upload-zone:hover { opacity: 0.8; }
         
         .expense-card {
             background-color: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 14px;
@@ -270,19 +271,26 @@
                     <h2 class="section-title">📸 영수증 업로드</h2>
                 </div>
                 
-                <input type="file" id="receiptInput" accept="image/*" style="display:none;" onchange="startOcrAnalysis(this)">
-                <div class="upload-zone" onclick="document.getElementById('receiptInput').click()">
-                    📸 영수증 이미지 선택 (PC/모바일)
+                <input type="file" id="receiptInputCamera" accept="image/*" capture="environment" style="display:none;" onchange="startOcrAnalysis(this)">
+                <input type="file" id="receiptInputGallery" accept="image/*" style="display:none;" onchange="startOcrAnalysis(this)">
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 25px;">
+                    <div class="upload-zone" style="flex:1; margin-bottom:0;" onclick="document.getElementById('receiptInputCamera').click()">
+                        📸 바로 카메라 촬영
+                    </div>
+                    <div class="upload-zone" style="flex:1; margin-bottom:0; background-color:#F2F2F7; border-color:#8E8E93; color:#1C1C1E;" onclick="document.getElementById('receiptInputGallery').click()">
+                        🖼️ 갤러리 및 PC 파일 첨부
+                    </div>
                 </div>
 
                 <div id="result-form" style="display: none;">
-                    <div style="font-size:16px; font-weight:700; margin-bottom:15px; color:#1C1C1E;">✨ AI 인식 결과 확인 및 수정</div>
+                    <div style="font-size:16px; font-weight:700; margin-bottom:15px; color:#1C1C1E;">✨ 자동 인식 결과 확인 및 수정</div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                         <div class="input-group"><label>거래 일자</label><input type="date" id="dateValue" class="input-box"></div>
                         <div class="input-group"><label>거래처명</label><input type="text" id="vendorValue" class="input-box"></div>
                         <div class="input-group"><label style="color:#007AFF;">합계금액 (원)</label><input type="number" id="totalValue" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateFromTotal()" placeholder="금액을 입력해주세요."></div>
-                        <div class="input-group"><label>공급가액 (원)</label><input type="number" id="supplyValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
-                        <div class="input-group"><label>부가세 (원)</label><input type="number" id="taxValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+                        <div class="input-group"><label>공급가액</label><input type="number" id="supplyValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+                        <div class="input-group"><label>부가세</label><input type="number" id="taxValue" class="input-box" readonly style="background-color: #E5E5EA;"></div>
                     </div>
                     
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
@@ -291,12 +299,12 @@
                             <select id="paymentCardValue" class="input-box"></select>
                         </div>
                         <div class="input-group">
-                            <label>비용 계정 선택 (예산 연동)</label>
+                            <label>비용 계정 선택</label>
                             <select id="categoryValue" class="input-box"></select>
                         </div>
                     </div>
                     
-                    <button class="btn-modal" style="margin-top: 20px;" onclick="addExpenseToList()">추가하기</button>
+                    <button class="btn-modal" style="margin-top: 20px;" onclick="addExpenseToList()">저장</button>
                 </div>
             </div>
 
@@ -323,7 +331,7 @@
 
                 <div class="settings-block">
                     <h3>🔒 보안 및 비밀번호 관리</h3>
-                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">보안을 위해 현재 비밀번호는 화면에 표시되지 않습니다. 변경을 원하시면 아래 버튼을 눌러 인증을 진행해 주세요.</p>
+                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;"> 비밀번호 변경을 위해 아래 버튼을 눌러 인증을 진행해 주세요.</p>
                     <button class="btn-save" style="background-color: #007AFF;" onclick="openAuthForPasswordChange()">비밀번호 인증 및 변경하기</button>
                 </div>
 
@@ -345,7 +353,7 @@
                         <button class="btn-save" style="background-color: #34C759; margin-top: 0; flex: 1; min-width: 120px;" onclick="saveBudgetsAndCategories()">예산 적용하기</button>
                         <button class="btn-save" style="background-color: #FF3B30; margin-top: 0; flex: 1; min-width: 100px;" onclick="resetBudgets()">예산 초기화</button>
                         <button class="btn-save" style="background-color: #1C1C1E; margin-top: 0; flex: 1; min-width: 120px;" onclick="openCategoryToggleModal()">계정 항목 설정</button>
-                        <button class="btn-save" style="background-color: #8E8E93; margin-top: 0; flex: 1; min-width: 120px;" onclick="openOcrSettingsModal()">Google API 설정</button>
+                        <button class="btn-save" style="background-color: #8E8E93; margin-top: 0; flex: 1; min-width: 120px;" onclick="openOcrSettingsModal()">모듈 API 설정</button>
                     </div>
                 </div>
             </div>
@@ -382,10 +390,24 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="edit-receipt-modal">
+        <div class="modal-box">
+            <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px;">영수증 내용 수정</h2>
+            <input type="hidden" id="edit-id">
+            <div class="input-group"><label>거래 일자</label><input type="date" id="edit-date" class="input-box"></div>
+            <div class="input-group"><label>거래처명</label><input type="text" id="edit-vendor" class="input-box"></div>
+            <div class="input-group"><label style="color:#007AFF;">합계금액 (원) - 변경 시 자동계산</label><input type="number" id="edit-total" class="input-box" style="font-weight:bold; color:#007AFF;" oninput="calculateEditTotal()"></div>
+            <div class="input-group"><label>공급가액 (원) - 수정 불가</label><input type="number" id="edit-supply" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+            <div class="input-group"><label>부가세 (원) - 수정 불가</label><input type="number" id="edit-tax" class="input-box" readonly style="background-color: #E5E5EA;"></div>
+            <button class="btn-modal" style="margin-top:20px;" onclick="saveEditedReceipt()">변경 저장하기</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('edit-receipt-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="pwd-auth-modal">
         <div class="modal-box">
             <h2 style="color: #1C1C1E; margin-top: 0; margin-bottom: 5px;">보안 인증</h2>
-            <p style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">설정을 변경하려면 <b style="color:#FF3B30;">데이터 초기화 비밀번호</b>를 입력하세요.</p>
+            <p style="font-size: 14px; color: #8E8E93; margin-bottom: 25px;">설정을 변경하려면 <b style="color:#FF3B30;">공통 보안 비밀번호</b>를 입력하세요.</p>
             <input type="password" id="auth-pwd-input" class="admin-password-box" placeholder="••••••••" onkeydown="if(event.key === 'Enter') confirmAuthForPwdChange()">
             <button class="btn-modal" onclick="confirmAuthForPwdChange()">인증하기</button>
             <button class="btn-modal btn-modal-close" onclick="document.getElementById('pwd-auth-modal').style.display='none'">취소</button>
@@ -397,7 +419,7 @@
             <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px;">새 비밀번호 설정</h2>
             <select id="pwd-target-select" class="input-box" style="margin-bottom: 15px; font-weight: 600;">
                 <option value="login">👉 시스템 접속 로그인 비밀번호 변경</option>
-                <option value="reset">👉 데이터 초기화 권한 비밀번호 변경</option>
+                <option value="reset">👉 초기화 및 설정 권한 비밀번호 변경</option>
             </select>
             <div style="text-align:left;">
                 <input type="password" id="pwd-cur-input" class="admin-password-box" placeholder="사용중인 비밀번호" style="margin-bottom: 10px;">
@@ -455,7 +477,10 @@
         // 전역 데이터 저장소
         let expenseDataArray = [];
         let loginPassword = "a13579!!"; 
+        
+        // 문제 3: 초기화 관련 모든 암호를 a13579~~ 로 통일
         let resetPassword = "a13579~~"; 
+        
         let monthlyBudgets = {}; 
         let categoryActiveState = {}; 
         let cardList = [
@@ -479,7 +504,14 @@
             overlay.classList.toggle('active');
         }
 
-        // 로컬 스토리지 저장 (일부 설정용)
+        // 공통 패스워드 검증 헬퍼 (문제 3 적용을 위한 함수)
+        function checkSecurityPassword() {
+            const input = prompt("설정 및 초기화를 진행하려면 권한 비밀번호를 입력하세요.");
+            if (input === resetPassword) return true;
+            if (input !== null) alert("❌ 비밀번호가 일치하지 않습니다.");
+            return false;
+        }
+
         function saveDataToStorage() {
             try {
                 localStorage.setItem('cardList', JSON.stringify(cardList));
@@ -500,7 +532,7 @@
 
         window.onload = function() {
             loadDataFromStorage();
-            loadDataFromSupabase(); // 화면 켜질 때 Supabase 데이터 호출
+            loadDataFromSupabase(); 
             
             renderCardManageList(); 
             
@@ -512,7 +544,6 @@
             }
         };
 
-        // 🌟 [추가 기능] Supabase에 예산 정보 저장
         async function saveBudgetsToSupabase() {
             try {
                 const { error } = await supabase.from('settings').upsert({
@@ -528,7 +559,6 @@
 
         async function loadDataFromSupabase() {
             try {
-                // 1. 세팅(예산) 정보 불러오기
                 const { data: settingData, error: settingError } = await supabase.from('settings').select('*').eq('id', 1).single();
                 if (settingData) {
                     monthlyBudgets = settingData.monthly_budgets || {};
@@ -536,7 +566,6 @@
                 }
                 updateCategoryDropdowns();
 
-                // 2. 영수증 내역 불러오기
                 const { data, error } = await supabase
                     .from('receipts')
                     .select('*')
@@ -544,7 +573,6 @@
 
                 if (error) throw error;
 
-                // Supabase 데이터를 배열 양식에 맞게 변환 (id 포함)
                 expenseDataArray = data.map(item => ({
                     id: item.id,
                     "거래일자": item.date,
@@ -719,10 +747,17 @@
 
                 globalBudget += totalBudget; globalUsed += totalUsed;
 
+                // 문제 5: 글자가 9자 이상 넘어갈 경우 폰트 크기 자동 조절 
+                const catLength = catName.length;
+                let calculatedFontSize = "16px";
+                if(catLength > 9) {
+                    calculatedFontSize = Math.max(11, Math.floor(16 * 9 / catLength)) + "px";
+                }
+
                 breakdownContainer.innerHTML += `
                     <div class="category-card" style="padding: 20px;">
                         ${badgeHtml}
-                        <div style="font-size: 16px; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px; padding-right: 60px;">${catName}</div>
+                        <div style="font-size: ${calculatedFontSize}; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px; padding-right: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${catName}</div>
                         <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
                             <span style="color:#8E8E93;">${isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all' ? '예산 (분기전체)' : '예산'}</span>
                             <span style="font-weight:600; color:#1C1C1E;">${totalBudget.toLocaleString()}원</span>
@@ -781,7 +816,7 @@
                 alert("✅ 로그인 접속 비밀번호가 변경되었습니다.");
             } else {
                 resetPassword = newPwd1;
-                alert("✅ 데이터 초기화 권한 비밀번호가 변경되었습니다.");
+                alert("✅ 초기화 및 설정 권한 비밀번호가 변경되었습니다.");
             }
             saveDataToStorage(); 
             document.getElementById('pwd-change-modal').style.display = 'none';
@@ -897,7 +932,6 @@
 
             monthlyBudgets = newMonthlyBudgets;
             
-            // Supabase에 예산 정보 동기화
             await saveBudgetsToSupabase();
             
             updateCategoryDropdowns();
@@ -909,6 +943,7 @@
         }
 
         async function resetBudgets() {
+            if(!checkSecurityPassword()) return; // 문제 3: 암호 통일
             if(confirm("⚠️ 등록된 센터 예산 데이터를 모두 초기화하시겠습니까?")) {
                 monthlyBudgets = {};
                 categoryActiveState = {}; 
@@ -923,6 +958,7 @@
         }
 
         function openCategoryToggleModal() {
+            if(!checkSecurityPassword()) return; // 문제 3: 암호 통일
             const listContainer = document.getElementById('category-toggle-list');
             listContainer.innerHTML = "";
             const allCats = Object.keys(categoryActiveState);
@@ -963,6 +999,7 @@
         }
 
         function openOcrSettingsModal() {
+            if(!checkSecurityPassword()) return; // 문제 3: 암호 통일
             document.getElementById('ocr-url-input').value = ocrConfig.url || "";
             document.getElementById('ocr-secret-input').value = ocrConfig.secret || "";
             document.getElementById('ocr-settings-modal').style.display = 'flex';
@@ -982,7 +1019,6 @@
             document.getElementById('reset-pwd').focus();
         }
 
-        // 🌟 [수정 기능] 클라우드(Supabase) 데이터 전체 삭제
         async function processDataReset() {
             const inputPwd = document.getElementById('reset-pwd').value;
             if(inputPwd !== resetPassword) {
@@ -995,7 +1031,6 @@
             document.querySelector('#loading-modal div:nth-child(2)').innerText = "클라우드 삭제 중...";
             
             try {
-                // receipts 테이블의 모든 데이터 삭제 (id가 null이 아닌 모든 열 삭제)
                 const { error } = await supabase.from('receipts').delete().neq('id', 0);
                 if(error) throw error;
 
@@ -1035,10 +1070,38 @@
             document.getElementById('taxValue').value = tax;
         }
 
+        // 팝업 모달용 합계 계산 
+        function calculateEditTotal() {
+            const total = Number(document.getElementById('edit-total').value) || 0;
+            const supply = Math.round(total / 1.1);
+            const tax = total - supply;
+            document.getElementById('edit-supply').value = supply;
+            document.getElementById('edit-tax').value = tax;
+        }
+
+        // 문제 2 적용: 텍스트에서 금액도 함께 추출하도록 로직 변경
         function parseGoogleVisionText(rawText) {
-            if(!rawText) return "알 수 없는 거래처";
+            if(!rawText) return { vendor: "알 수 없는 거래처", total: "" };
+            
             const lines = rawText.split('\n').map(line => line.trim()).filter(line => line);
-            return lines.length > 0 ? lines[0] : "알 수 없는 거래처";
+            const vendor = lines.length > 0 ? lines[0] : "알 수 없는 거래처";
+            
+            let totalAmount = "";
+            // '합계', '결제금액', '총액', '승인금액' 등 키워드 근처의 숫자 찾기
+            const totalRegex = /(?:합\s*계|결\s*제\s*금\s*액|총\s*액|승\s*인\s*금\s*액|받\s*을\s*금\s*액)[\s:：]*([0-9,]+)/i;
+            const match = rawText.match(totalRegex);
+            
+            if(match) {
+                totalAmount = match[1].replace(/,/g, '');
+            } else {
+                // 특정 키워드가 없을 경우 3자리 이상인 가장 큰 숫자를 임의로 추출
+                const numbers = rawText.match(/[0-9,]{4,}/g);
+                if(numbers) {
+                    totalAmount = numbers[numbers.length - 1].replace(/,/g, '');
+                }
+            }
+
+            return { vendor, total: totalAmount };
         }
 
         async function startOcrAnalysis(input) {
@@ -1071,15 +1134,16 @@
                             if (data.error) throw new Error(data.error.message);
 
                             const fullText = data.responses[0].textAnnotations ? data.responses[0].textAnnotations[0].description : "";
-                            const vendor = parseGoogleVisionText(fullText); 
+                            const parsed = parseGoogleVisionText(fullText); 
                             
                             modal.style.display = 'none';
-                            showResultForm(vendor);
+                            // 문제 2. 합계 금액도 함께 넘김
+                            showResultForm(parsed.vendor, parsed.total);
                         } catch (error) {
                             console.error("OCR Error:", error);
                             alert("영수증 인식 중 오류가 발생했습니다: " + error.message);
                             modal.style.display = 'none';
-                            showResultForm("인식 실패");
+                            showResultForm("인식 실패", "");
                         }
                     });
                 };
@@ -1087,14 +1151,18 @@
             }
         }
 
-        function showResultForm(vendorName = "알 수 없는 거래처") {
+        // 인자에 금액 추가
+        function showResultForm(vendorName = "알 수 없는 거래처", totalAmount = "") {
             document.getElementById('result-form').style.display = 'block';
             document.getElementById('dateValue').value = new Date().toISOString().split('T')[0];
             
             document.getElementById('vendorValue').value = vendorName;
-            document.getElementById('totalValue').value = ""; 
-            document.getElementById('supplyValue').value = "";
-            document.getElementById('taxValue').value = "";
+            document.getElementById('totalValue').value = totalAmount; 
+            if(totalAmount) calculateFromTotal(); // 자동 계산 트리거
+            else {
+                document.getElementById('supplyValue').value = "";
+                document.getElementById('taxValue').value = "";
+            }
             
             const activeCats = getActiveCategories();
             if(activeCats.length > 0) document.getElementById('categoryValue').value = activeCats[0];
@@ -1152,10 +1220,11 @@
 
                 if (error) throw error;
 
-                alert("✅ 성공적으로 클라우드에 등록되었습니다!");
+                alert("✅ 성공적으로 등록되었습니다!");
                 
                 currentReceiptImage = null; 
-                document.getElementById('receiptInput').value = "";
+                document.getElementById('receiptInputCamera').value = "";
+                document.getElementById('receiptInputGallery').value = "";
                 document.getElementById('result-form').style.display = 'none';
                 
                 await loadDataFromSupabase(); // 화면 갱신
@@ -1182,9 +1251,9 @@
             }
         }
 
-        // 🌟 [추가 기능] 개별 영수증 수정 및 삭제
         async function deleteReceipt(id) {
-            if(!confirm("⚠️ 이 영수증을 목록에서 삭제하시겠습니까?\n(클라우드에서도 영구 삭제됩니다)")) return;
+            if(!checkSecurityPassword()) return; // 문제 3: 암호 통일
+            if(!confirm("⚠️ 이 영수증을 목록에서 영구삭제하시겠습니까?")) return;
             
             document.getElementById('loading-modal').style.display = 'flex';
             try {
@@ -1198,33 +1267,43 @@
             }
         }
 
-        async function editReceipt(id) {
+        // 문제 4 적용: 수정 클릭시 전용 팝업이 뜨도록 변경
+        function editReceipt(id) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
 
-            const newVendor = prompt("수정할 '거래처명'을 입력하세요:", item['거래처명']);
-            if(newVendor === null) return;
+            // 데이터 채우기
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-date').value = item['거래일자'];
+            document.getElementById('edit-vendor').value = item['거래처명'];
+            document.getElementById('edit-total').value = item['합계금액'];
+            document.getElementById('edit-supply').value = item['공급가액'];
+            document.getElementById('edit-tax').value = item['부가세'];
+            
+            // 모달 열기
+            document.getElementById('edit-receipt-modal').style.display = 'flex';
+        }
 
-            const newCard = prompt("수정할 '사용 카드'를 입력하세요\n(예: 홍길동(0000)):", item['결제 카드']);
-            if(newCard === null) return;
+        // 문제 4 적용: 변경 모달 저장 프로세스
+        async function saveEditedReceipt() {
+            const id = document.getElementById('edit-id').value;
+            const newDate = document.getElementById('edit-date').value;
+            const newVendor = document.getElementById('edit-vendor').value.trim();
+            const newTotal = Number(document.getElementById('edit-total').value) || 0;
+            const newSupply = Number(document.getElementById('edit-supply').value) || 0;
+            const newTax = Number(document.getElementById('edit-tax').value) || 0;
 
-            const newTotalStr = prompt("수정할 '합계금액(원)'을 숫자로만 입력하세요:", item['합계금액']);
-            if(newTotalStr === null) return;
-            const newTotal = Number(newTotalStr.replace(/[^0-9]/g, ''));
-
-            if(!newVendor.trim() || isNaN(newTotal) || newTotal === 0) {
-                return alert("❌ 입력값이 올바르지 않습니다.");
+            if(!newVendor || newTotal === 0) {
+                return alert("❌ 거래처명과 금액을 올바르게 입력해주세요.");
             }
 
-            // 역산 계산
-            const newSupply = Math.round(newTotal / 1.1);
-            const newTax = newTotal - newSupply;
-
+            document.getElementById('edit-receipt-modal').style.display = 'none';
             document.getElementById('loading-modal').style.display = 'flex';
+
             try {
                 const { error } = await supabase.from('receipts').update({
+                    date: newDate,
                     vendor: newVendor,
-                    card: newCard,
                     total: newTotal,
                     supply: newSupply,
                     tax: newTax
