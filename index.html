@@ -347,12 +347,12 @@
                 <div class="settings-block">
                     <h3>🔒 보안 및 비밀번호 관리</h3>
                     <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">보안을 위해 현재 비밀번호는 화면에 표시되지 않습니다. 변경을 원하시면 아래 버튼을 눌러 인증을 진행해 주세요.</p>
-                    <button class="btn-save" style="background-color: #007AFF;" onclick="openAuthModal(openPwdChangeModal, '보안 인증', '설정 변경을 위해 권한 비밀번호를 입력하세요.')">비밀번호 인증 및 변경하기</button>
+                    <button class="btn-save" style="background-color: #007AFF;" onclick="openAuthModal(openPwdChangeModal, '보안 인증', '설정 변경을 위해 권한 비밀번호를 입력하세요.')">비밀번호 변경하기</button>
                 </div>
 
                 <div class="settings-block">
                     <h3>💳 결제 카드 관리</h3>
-                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">영수증 업로드 시 선택할 결제 카드 목록(소지자 및 뒷자리)을 관리합니다.</p>
+                    <p style="font-size: 13px; color: #8E8E93; margin-top: 0;">영수증 업로드 시 선택할 결제 카드 목록을 관리합니다.</p>
                     <button class="btn-save" style="background-color: #1C1C1E;" onclick="openCardManageModal()">결제 카드 관리하기</button>
                 </div>
 
@@ -829,9 +829,9 @@
                 // 뱃지 및 클릭 이벤트 동적 생성 (문제 1 반영)
                 let badgeHtml = '';
                 if (isQuarterly) {
-                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '분기통제'}</span>`;
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월통제' : '분기통제'}</span>`;
                 } else if (isYearly) {
-                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '년통제'}</span>`;
+                    badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '월통제' : '년통제'}</span>`;
                 }
                 const clickEvent = (isQuarterly || isYearly) ? `onclick="toggleCategoryView('${catName}')" style="cursor:pointer; padding: 20px;"` : `style="padding: 20px;"`;
 
@@ -841,9 +841,9 @@
 
                 let labelText = '예산';
                 if (isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all') {
-                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (분기전체)';
+                    labelText = isMonthlyView ? '예산' : '예산';
                 } else if (isYearly && selectedPeriod !== 'all') {
-                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (연간전체)';
+                    labelText = isMonthlyView ? '예산' : '예산';
                 }
 
                 breakdownContainer.innerHTML += `
@@ -1031,7 +1031,7 @@
             renderExpenseList();
             updateDashboard();
             
-            alert(`✅ 월별 자동 맵핑 성공!\n총 [ ${parsedCategories.size} ]개의 계정과 예산이 등록되었습니다.`);
+            alert(`✅ 예산 등록 성공!\n총 [ ${parsedCategories.size} ]개의 계정과 예산이 등록되었습니다.`);
             document.getElementById('setting-budget').value = "";
         }
 
