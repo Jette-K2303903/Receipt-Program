@@ -767,7 +767,7 @@
                         let shouldInclude = false;
                         if (selectedPeriod === 'all') {
                             shouldInclude = true;
-                        } else if (categoryAggregates[cat].controlType === "년통제" && !toggleQuarterlyDisplay[cat]) {
+                        } else if (categoryAggregates[cat].controlType === "년　통제" && !toggleQuarterlyDisplay[cat]) {
                             shouldInclude = true; // 년통제는 무조건 년도 전체 포함
                         } else if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
                             if (mQuarter === (selectedPeriod.startsWith('Q') ? selectedPeriod : getQuarter(selectedPeriod))) {
@@ -799,7 +799,7 @@
 
                     if (selectedPeriod === 'all') {
                         shouldInclude = true;
-                    } else if (categoryAggregates[cat].controlType === "년통제" && !toggleQuarterlyDisplay[cat]) {
+                    } else if (categoryAggregates[cat].controlType === "년　통제" && !toggleQuarterlyDisplay[cat]) {
                         shouldInclude = true; 
                     } else if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
                         if (mQuarter === (selectedPeriod.startsWith('Q') ? selectedPeriod : getQuarter(selectedPeriod))) {
