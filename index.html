@@ -17,6 +17,20 @@
             display: flex; justify-content: center; align-items: center;
             min-height: 100vh; margin: 0; padding: 20px;
             box-sizing: border-box; letter-spacing: -0.5px;
+            
+            /* 문제 1: 텍스트 선택 방지 */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        /* 텍스트 입력 창에서는 선택이 가능하도록 예외 처리 */
+        input, textarea {
+            -webkit-user-select: auto;
+            -moz-user-select: auto;
+            -ms-user-select: auto;
+            user-select: auto;
         }
 
         .app-container {
@@ -194,7 +208,7 @@
         }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;" ondragstart="return false;" onselectstart="return false;">
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMobileMenu()"></div>
 
@@ -489,6 +503,9 @@
             { name: "홍길순", num: "1234" }
         ];
         
+        // 문제 2: 계정별 분기통제 디스플레이 토글 상태 저장 객체
+        let toggleQuarterlyDisplay = {};
+        
         let ocrConfig = { url: "", secret: "" }; 
         const GOOGLE_API_KEY = "AIzaSyBx1gHLqFe1gYwuEEXtgiB7c3EQKrX605U";
         let currentReceiptImage = null; 
@@ -547,7 +564,7 @@
             }
         };
 
-        // 문제 3 통합 권한 인증 모달 열기
+        // 통합 권한 인증 모달 열기
         function openAuthModal(actionCallback, title, desc) {
             currentAuthAction = actionCallback;
             document.getElementById('generic-auth-title').innerText = title;
@@ -557,7 +574,7 @@
             document.getElementById('generic-auth-pwd').focus();
         }
 
-        // 문제 3 통합 권한 인증 처리
+        // 통합 권한 인증 처리
         function processGenericAuth() {
             const inputPwd = document.getElementById('generic-auth-pwd').value;
             if(inputPwd === resetPassword) {
@@ -568,6 +585,12 @@
                 document.getElementById('generic-auth-pwd').value = "";
                 document.getElementById('generic-auth-pwd').focus();
             }
+        }
+
+        // 문제 2: 계정 카드 클릭시 월별/분기별 토글 동작
+        function toggleCategoryView(catName) {
+            toggleQuarterlyDisplay[catName] = !toggleQuarterlyDisplay[catName];
+            updateDashboard();
         }
 
         // 예산 뿐만 아니라 모든 세팅(카드, 비밀번호 등)을 Supabase에 동기화
@@ -747,7 +770,8 @@
                         else if (selectedPeriod.startsWith('Q')) {
                             if (mQuarter === selectedPeriod) shouldInclude = true;
                         } else {
-                            if (categoryAggregates[cat].controlType === "분기통제") {
+                            // 문제 2: !toggleQuarterlyDisplay[cat] 조건 추가 (토글이 켜져있으면 월별로 간주)
+                            if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
                                 if (mQuarter === getQuarter(selectedPeriod)) shouldInclude = true;
                             } else {
                                 if (monthKey === selectedPeriod) shouldInclude = true;
@@ -773,7 +797,8 @@
                     else if (selectedPeriod.startsWith('Q')) {
                         if (mQuarter === selectedPeriod) shouldInclude = true;
                     } else {
-                        if (categoryAggregates[cat].controlType === "분기통제") {
+                        // 문제 2: !toggleQuarterlyDisplay[cat] 조건 추가
+                        if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
                             if (mQuarter === getQuarter(selectedPeriod)) shouldInclude = true;
                         } else {
                             if (itemMonth === selectedPeriod) shouldInclude = true;
@@ -789,19 +814,27 @@
                 const totalUsed = categoryAggregates[catName].actual + categoryAggregates[catName].inApp;
                 const balance = totalBudget - totalUsed;
                 const isQuarterly = categoryAggregates[catName].controlType === "분기통제";
-                const badgeHtml = isQuarterly ? `<span class="controlled-badge">분기통제</span>` : '';
+                const isMonthlyView = toggleQuarterlyDisplay[catName] === true;
+                
+                // 문제 2: 뱃지 텍스트 동적 렌더링
+                const badgeHtml = isQuarterly ? `<span class="controlled-badge">${isMonthlyView ? '월별보기' : '분기통제'}</span>` : '';
+                const clickEvent = isQuarterly ? `onclick="toggleCategoryView('${catName}')" style="cursor:pointer; padding: 20px;"` : `style="padding: 20px;"`;
 
                 globalBudget += totalBudget; globalUsed += totalUsed;
 
-                // 문제 7: 글자 수가 9자가 넘으면 폰트 사이즈를 줄임
                 const titleFontSize = catName.length > 9 ? '12px' : '16px';
 
+                let labelText = '예산';
+                if (isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all') {
+                    labelText = isMonthlyView ? '예산 (해당월)' : '예산 (분기전체)';
+                }
+
                 breakdownContainer.innerHTML += `
-                    <div class="category-card" style="padding: 20px;">
+                    <div class="category-card" ${clickEvent}>
                         ${badgeHtml}
                         <div style="font-size: ${titleFontSize}; color:#1C1C1E; font-weight:700; border-bottom: 1px solid #E5E5EA; padding-bottom: 10px; margin-bottom: 12px; padding-right: 40px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px;">${catName}</div>
                         <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                            <span style="color:#8E8E93;">${isQuarterly && !selectedPeriod.startsWith('Q') && selectedPeriod !== 'all' ? '예산 (분기전체)' : '예산'}</span>
+                            <span style="color:#8E8E93;">${labelText}</span>
                             <span style="font-weight:600; color:#1C1C1E;">${totalBudget.toLocaleString()}원</span>
                         </div>
                         <div style="display:flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
@@ -1100,7 +1133,6 @@
             document.getElementById('taxValue').value = tax;
         }
 
-        // 문제 4: 수정 팝업창 내 합계금액 자동계산
         function calculateEditTotal() {
             const total = Number(document.getElementById('edit-total').value) || 0;
             const supply = Math.round(total / 1.1);
@@ -1269,9 +1301,12 @@
             }
         }
 
-        async function deleteReceipt(id) {
-            if(!confirm("⚠️ 이 영수증을 목록에서 삭제하시겠습니까?")) return;
-            
+        // 문제 3: 개별 영수증 삭제 시 권한 모달창 띄우도록 수정
+        function requestDeleteReceipt(id) {
+            openAuthModal(() => executeDeleteReceipt(id), '항목 삭제', '선택한 영수증을 삭제하시려면 비밀번호를 입력하세요.');
+        }
+
+        async function executeDeleteReceipt(id) {
             document.getElementById('loading-modal').style.display = 'flex';
             try {
                 const { error } = await supabase.from('receipts').delete().eq('id', id);
@@ -1284,7 +1319,6 @@
             }
         }
 
-        // 문제 4: 수정 팝업창 오픈 (prompt 제거)
         function editReceipt(id) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
@@ -1299,7 +1333,6 @@
             document.getElementById('edit-receipt-modal').style.display = 'flex';
         }
 
-        // 문제 4: 팝업창 내 데이터 수정 적용
         async function executeEditReceipt() {
             const id = document.getElementById('edit-id').value;
             const newDate = document.getElementById('edit-date').value;
@@ -1382,7 +1415,7 @@
                     </div>
                     <div class="expense-card-bottom">
                         <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 내용 수정</button>
-                        <button class="btn-sm btn-sm-danger" onclick="deleteReceipt(${item.id})">🗑️ 삭제</button>
+                        <button class="btn-sm btn-sm-danger" onclick="requestDeleteReceipt(${item.id})">🗑️ 삭제</button>
                     </div>
                 `;
                 listContainer.appendChild(card);
