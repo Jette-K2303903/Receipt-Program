@@ -1520,7 +1520,7 @@
                             
                             const base64String = base64Data.split(',')[1];
                             const imageId = wb.addImage({ base64: base64String, extension: 'jpeg' });
-                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 600, height: 900 } });
+                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 600, height: 600 } });
                         } catch (e) { 
                             console.error("Image Export Error:", e); 
                         }
