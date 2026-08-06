@@ -1189,7 +1189,7 @@
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {
-                    compressImage(e.target.result, 1200, async function(compressedBase64) {
+                    compressImage(e.target.result, 1600, async function(compressedBase64) {
                         currentReceiptImage = compressedBase64; 
                         const modal = document.getElementById('loading-modal');
                         modal.style.display = 'flex';
