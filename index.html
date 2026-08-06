@@ -653,7 +653,8 @@
                 const { data, error } = await supabase
                     .from('receipts')
                     .select('*')
-                    .order('date', { ascending: false });
+                    .order('date', { ascending: false })
+                    .order('id', { ascending: false });
 
                 if (error) throw error;
 
