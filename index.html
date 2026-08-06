@@ -94,9 +94,24 @@
         .section-header {
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 2px solid #F2F2F7; padding-bottom: 15px; margin-bottom: 25px;
+            position: relative; /* 중앙 정렬을 위한 기준점 */
         }
         .section-title { font-size: 22px; font-weight: 700; color: #1C1C1E; margin: 0; display: flex; align-items: center; gap: 10px;}
         
+        /* 잔여 용량 뱃지 중앙 정렬을 위한 스타일 */
+        .storage-badge-pc {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #F0F7FF;
+            color: #007AFF;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
         .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn-sm {
             padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px;
@@ -196,9 +211,11 @@
             .mobile-menu-toggle { display: inline-flex; }
 
             #result-form > div { grid-template-columns: 1fr !important; gap: 10px !important; }
-            .section-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .section-header { flex-direction: column; align-items: flex-start; gap: 15px; position: relative; }
             .header-actions { width: 100%; justify-content: flex-end; }
             
+            .storage-badge-pc { position: relative; left: auto; transform: none; width: 100%; text-align: center; }
+
             .dashboard-card { padding: 20px; }
             .budget-badge { position: relative; top: 0; right: 0; align-self: flex-start; margin-bottom: 10px; }
             .category-breakdown-grid { grid-template-columns: 1fr; }
@@ -326,6 +343,9 @@
             <div id="view-list" class="view-section">
                 <div class="section-header">
                     <h2 class="section-title">📋 비용 정산 목록</h2>
+                    <div id="storage-badge" class="storage-badge-pc">
+                        ☁️ 잔여 용량 확인 중...
+                    </div>
                     <div class="header-actions">
                         <button class="btn-sm btn-sm-success" onclick="downloadExcel()">💾 엑셀 다운로드</button>
                         <button class="btn-sm btn-sm-danger" onclick="openAuthModal(processDataReset, '목록 전체 삭제', '초기화 권한 비밀번호를 입력하세요.')">🗑️ 초기화</button>
@@ -652,6 +672,7 @@
 
                 renderExpenseList();
                 updateDashboard();
+                fetchStorageSize(); // 잔여 용량 데이터 호출
             } catch (error) {
                 console.error("데이터 불러오기 에러:", error);
                 updateCategoryDropdowns();
@@ -1515,6 +1536,42 @@
             } finally {
                 document.getElementById('loading-modal').style.display = 'none';
                 document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 처리 중";
+            }
+        }
+
+        // 👇 저장 공간 잔여 용량 가져오기 함수 추가 👇
+        async function fetchStorageSize() {
+            try {
+                const { data: totalBytes, error } = await supabase.rpc('get_storage_size');
+                if (error) throw error;
+
+                // 1GB = 1024MB = 1073741824 Bytes
+                const MAX_BYTES = 1073741824; 
+                const currentBytes = totalBytes || 0;
+                
+                // 사용량 및 잔여량 계산 (MB 단위)
+                const usedMB = currentBytes / (1024 * 1024);
+                const remainMB = 1024 - usedMB;
+                const remainPercent = (remainMB / 1024) * 100;
+
+                const badge = document.getElementById('storage-badge');
+                if (badge) {
+                    // 잔여 용량 및 퍼센트로 표시 (요청하신 포맷 적용)
+                    badge.innerHTML = `☁️ 잔여 용량 : ${remainPercent.toFixed(1)}% (${remainMB.toFixed(1)}MB)`;
+                    
+                    // 만약 잔여 용량이 10% 이하로 떨어지면 경고(빨간색)로 변경
+                    if (remainPercent <= 10) {
+                        badge.style.background = '#FFF2F2';
+                        badge.style.color = '#FF3B30';
+                    } else {
+                        badge.style.background = '#F0F7FF';
+                        badge.style.color = '#007AFF';
+                    }
+                }
+            } catch (error) {
+                console.error("저장공간 확인 오류:", error);
+                const badge = document.getElementById('storage-badge');
+                if (badge) badge.innerHTML = `☁️ 용량 확인 불가`;
             }
         }
     </script>
