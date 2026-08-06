@@ -1157,7 +1157,7 @@
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                callback(canvas.toDataURL('image/jpeg', 0.6));
+                callback(canvas.toDataURL('image/jpeg', 0.85));
             };
         }
 
@@ -1189,7 +1189,7 @@
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {
-                    compressImage(e.target.result, 800, async function(compressedBase64) {
+                    compressImage(e.target.result, 1200, async function(compressedBase64) {
                         currentReceiptImage = compressedBase64; 
                         const modal = document.getElementById('loading-modal');
                         modal.style.display = 'flex';
@@ -1520,7 +1520,7 @@
                             
                             const base64String = base64Data.split(',')[1];
                             const imageId = wb.addImage({ base64: base64String, extension: 'jpeg' });
-                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 400, height: 600 } });
+                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 600, height: 900 } });
                         } catch (e) { 
                             console.error("Image Export Error:", e); 
                         }
