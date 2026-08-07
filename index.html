@@ -347,7 +347,7 @@
                         ☁️ 잔여 용량 확인 중...
                     </div>
                     <div class="header-actions">
-                        <button class="btn-sm btn-sm-success" onclick="downloadExcel()">💾 다운로드</button>
+                        <button class="btn-sm btn-sm-success" onclick="downloadExcel()">💾 엑셀 다운로드</button>
                         <button class="btn-sm btn-sm-danger" onclick="openAuthModal(processDataReset, '목록 전체 삭제', '초기화 권한 비밀번호를 입력하세요.')">🗑️ 초기화</button>
                     </div>
                 </div>
@@ -524,12 +524,13 @@
         let resetPassword = "a13579~~"; 
         let monthlyBudgets = {}; 
         let categoryActiveState = {}; 
+        let categoryUseTotalState = {}; // [문제 1] 합계 적용 상태 저장소 추가
         let cardList = [
             { name: "홍길동", num: "0000" },
             { name: "홍길순", num: "1234" }
         ];
         
-        // 문제 1 & 2: 계정별 분기통제 및 년통제 디스플레이 토글 상태 저장 객체
+        // 계정별 분기통제 및 년통제 디스플레이 토글 상태 저장 객체
         let toggleQuarterlyDisplay = {};
         
         let ocrConfig = { url: "", secret: "" }; 
@@ -559,6 +560,7 @@
                 localStorage.setItem('resetPassword', resetPassword);
                 localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
                 localStorage.setItem('categoryActiveState', JSON.stringify(categoryActiveState));
+                localStorage.setItem('categoryUseTotalState', JSON.stringify(categoryUseTotalState)); // [문제 1] 합계 상태 저장
             } catch (e) {
                 console.error("Storage Error:", e);
             }
@@ -572,6 +574,7 @@
             
             if(localStorage.getItem('monthlyBudgets')) monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets'));
             if(localStorage.getItem('categoryActiveState')) categoryActiveState = JSON.parse(localStorage.getItem('categoryActiveState'));
+            if(localStorage.getItem('categoryUseTotalState')) categoryUseTotalState = JSON.parse(localStorage.getItem('categoryUseTotalState')); // [문제 1] 합계 상태 로드
         }
 
         window.onload = function() {
@@ -609,7 +612,6 @@
             }
         }
 
-        // 문제 1: 계정 카드 클릭시 월별/분기별(또는 년별) 토글 동작
         function toggleCategoryView(catName) {
             toggleQuarterlyDisplay[catName] = !toggleQuarterlyDisplay[catName];
             updateDashboard();
@@ -621,6 +623,7 @@
                     id: 1, 
                     monthly_budgets: monthlyBudgets, 
                     active_categories: categoryActiveState,
+                    use_total_state: categoryUseTotalState, // [문제 1] 합계 상태 Supabase 동기화 추가
                     card_list: cardList,
                     login_password: loginPassword,
                     reset_password: resetPassword,
@@ -640,6 +643,7 @@
                 if (settingData) {
                     monthlyBudgets = settingData.monthly_budgets || monthlyBudgets;
                     categoryActiveState = settingData.active_categories || categoryActiveState;
+                    if(settingData.use_total_state) categoryUseTotalState = settingData.use_total_state; // [문제 1] 합계 상태 불러오기
                     if(settingData.card_list) cardList = settingData.card_list;
                     if(settingData.login_password) loginPassword = settingData.login_password;
                     if(settingData.reset_password) resetPassword = settingData.reset_password;
@@ -667,7 +671,7 @@
                     "공급가액": item.supply,
                     "부가세": item.tax,
                     "합계금액": item.total,
-                    "비고": item.note || "", // 문제 2: 비고 연동
+                    "비고": item.note || "",
                     "이미지": item.image_url
                 }));
 
@@ -781,7 +785,6 @@
                 }
             }
 
-            // 예산 합산 로직 (문제 1 반영)
             for (const [monthKey, monthData] of Object.entries(monthlyBudgets)) {
                 const mQuarter = getQuarter(monthKey);
                 for (const cat of activeCats) {
@@ -790,7 +793,7 @@
                         if (selectedPeriod === 'all') {
                             shouldInclude = true;
                         } else if (categoryAggregates[cat].controlType === "년통제" && !toggleQuarterlyDisplay[cat]) {
-                            shouldInclude = true; // 년통제는 무조건 년도 전체 포함
+                            shouldInclude = true; 
                         } else if (categoryAggregates[cat].controlType === "분기통제" && !toggleQuarterlyDisplay[cat]) {
                             if (mQuarter === (selectedPeriod.startsWith('Q') ? selectedPeriod : getQuarter(selectedPeriod))) {
                                 shouldInclude = true;
@@ -811,7 +814,6 @@
                 }
             }
 
-            // 실 사용 금액 합산 로직 (문제 1 반영)
             expenseDataArray.forEach(item => {
                 const cat = item['비용 계정'];
                 if (activeCats.includes(cat) && categoryAggregates[cat]) {
@@ -835,7 +837,11 @@
                         }
                     }
 
-                    if (shouldInclude) categoryAggregates[cat].inApp += item['합계금액'];
+                    // [문제 1] 합계 상태에 따라 적용 금액 분기
+                    if (shouldInclude) {
+                        const useTotal = categoryUseTotalState[cat] === true;
+                        categoryAggregates[cat].inApp += (useTotal ? item['합계금액'] : item['공급가액']);
+                    }
                 }
             });
 
@@ -848,7 +854,6 @@
                 const isYearly = categoryAggregates[catName].controlType === "년통제";
                 const isMonthlyView = toggleQuarterlyDisplay[catName] === true;
                 
-                // 뱃지 및 클릭 이벤트 동적 생성 (문제 1 반영)
                 let badgeHtml = '';
                 if (isQuarterly) {
                     badgeHtml = `<span class="controlled-badge">${isMonthlyView ? '당월통제' : '분기통제'}</span>`;
@@ -1078,13 +1083,21 @@
             
             if(allCats.length === 0) listContainer.innerHTML = "<p style='color:#8E8E93; font-size:13px; text-align:center;'>맵핑된 계정이 없습니다.</p>";
             else {
+                // [문제 1] 카테고리별 합계 적용 체크박스 추가
                 allCats.forEach(cat => {
                     const isChecked = categoryActiveState[cat] ? "checked" : "";
+                    const isTotalChecked = categoryUseTotalState[cat] ? "checked" : "";
                     listContainer.innerHTML += `
-                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:15px; cursor:pointer;">
-                            <input type="checkbox" id="chk-${cat}" value="${cat}" ${isChecked} style="width:18px; height:18px;">
-                            ${cat}
-                        </label>
+                        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:12px;">
+                            <label style="display:flex; align-items:center; gap:10px; font-size:15px; cursor:pointer;">
+                                <input type="checkbox" id="chk-${cat}" value="${cat}" ${isChecked} style="width:18px; height:18px;">
+                                ${cat}
+                            </label>
+                            <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:#007AFF; cursor:pointer;">
+                                <input type="checkbox" id="chk-total-${cat}" ${isTotalChecked} style="width:15px; height:15px;">
+                                합계
+                            </label>
+                        </div>
                     `;
                 });
             }
@@ -1095,6 +1108,9 @@
             Object.keys(categoryActiveState).forEach(cat => {
                 const checkbox = document.getElementById(`chk-${cat}`);
                 if(checkbox) categoryActiveState[cat] = checkbox.checked;
+                // [문제 1] 합계 상태 저장
+                const totalCheckbox = document.getElementById(`chk-total-${cat}`);
+                if(totalCheckbox) categoryUseTotalState[cat] = totalCheckbox.checked;
             });
             
             await syncSettingsToSupabase();
@@ -1238,7 +1254,7 @@
             document.getElementById('totalValue').value = ""; 
             document.getElementById('supplyValue').value = "";
             document.getElementById('taxValue').value = "";
-            document.getElementById('noteValue').value = ""; // 문제 2: 비고 초기화 추가
+            document.getElementById('noteValue').value = "";
             
             const activeCats = getActiveCategories();
             if(activeCats.length > 0) document.getElementById('categoryValue').value = activeCats[0];
@@ -1248,7 +1264,7 @@
         async function addExpenseToList() {
             const date = document.getElementById('dateValue').value;
             const vendor = document.getElementById('vendorValue').value.trim();
-            const note = document.getElementById('noteValue').value.trim(); // 문제 2
+            const note = document.getElementById('noteValue').value.trim();
             
             const rawSupply = document.getElementById('supplyValue').value.toString().replace(/,/g, '');
             const rawTax = document.getElementById('taxValue').value.toString().replace(/,/g, '');
@@ -1289,7 +1305,6 @@
                     imageUrl = publicUrlData.publicUrl;
                 }
 
-                // 문제 2: note 저장 연동
                 const { data, error } = await supabase.from('receipts').insert([{ 
                     date: date, vendor: vendor, supply: supply, 
                     tax: tax, total: total, category: category, 
@@ -1334,7 +1349,38 @@
             }
         }
 
-        // 문제 3: 수정 기능에서 계정/카드/비고 가져오기
+        // [문제 2] 면세 적용 토글 함수 추가
+        async function toggleTaxFree(id, isCurrentlyTaxFree) {
+            const item = expenseDataArray.find(x => x.id === id);
+            if(!item) return;
+
+            let newSupply, newTax;
+            if(isCurrentlyTaxFree) {
+                // 면세 해제 (기본 10% 부가세로 복구)
+                newSupply = Math.round(item['합계금액'] / 1.1);
+                newTax = item['합계금액'] - newSupply;
+            } else {
+                // 면세 적용 (부가세 0원, 공급가액 = 합계금액)
+                newSupply = item['합계금액'];
+                newTax = 0;
+            }
+
+            document.getElementById('loading-modal').style.display = 'flex';
+            try {
+                const { error } = await supabase.from('receipts').update({
+                    supply: newSupply,
+                    tax: newTax
+                }).eq('id', id);
+
+                if (error) throw error;
+                await loadDataFromSupabase(); // 갱신
+            } catch (error) {
+                alert("면세 상태 변경 중 오류가 발생했습니다: " + error.message);
+            } finally {
+                document.getElementById('loading-modal').style.display = 'none';
+            }
+        }
+
         function editReceipt(id) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
@@ -1368,7 +1414,6 @@
             document.getElementById('edit-receipt-modal').style.display = 'flex';
         }
 
-        // 문제 3: 수정 기능에서 계정/카드/비고 저장하기
         async function executeEditReceipt() {
             const id = document.getElementById('edit-id').value;
             const newDate = document.getElementById('edit-date').value;
@@ -1410,7 +1455,6 @@
             }
         }
 
-        // 문제 4: 리스트에서 계정/결제카드 영역에 비고 표시되도록 수정
         function renderExpenseList() {
             const listContainer = document.getElementById('expense-list-container');
             listContainer.innerHTML = ""; 
@@ -1422,6 +1466,10 @@
 
             expenseDataArray.forEach((item, index) => {
                 const imgIcon = item['이미지'] ? "🖼️ " : "";
+                // [문제 2] 면세 적용 여부 식별 및 UI 버튼/뱃지 동적 생성
+                const isTaxFree = (item['부가세'] === 0 && item['합계금액'] > 0 && item['합계금액'] === item['공급가액']);
+                const taxFreeBadge = isTaxFree ? `<span style="color:#34C759; font-weight:800; font-size:14px;">[면세 적용]</span>` : '';
+                const taxFreeBtnText = isTaxFree ? '면세 해제' : '면세 적용';
 
                 const card = document.createElement('div');
                 card.className = "expense-card";
@@ -1436,9 +1484,13 @@
                         </div>
                         <div class="expense-amount" style="text-align: right;">${item['합계금액'].toLocaleString()}원</div>
                     </div>
-                    <div class="expense-card-bottom">
-                        <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 내용 수정</button>
-                        <button class="btn-sm btn-sm-danger" onclick="requestDeleteReceipt(${item.id})">🗑️ 삭제</button>
+                    <div class="expense-card-bottom" style="justify-content: space-between; align-items: center;">
+                        <div>${taxFreeBadge}</div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-sm" style="background-color: #E8F5E9; color: #34C759;" onclick="toggleTaxFree(${item.id}, ${isTaxFree})">🌿 ${taxFreeBtnText}</button>
+                            <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 내용 수정</button>
+                            <button class="btn-sm btn-sm-danger" onclick="requestDeleteReceipt(${item.id})">🗑️ 삭제</button>
+                        </div>
                     </div>
                 `;
                 listContainer.appendChild(card);
@@ -1540,7 +1592,7 @@
             }
         }
 
-        // 👇 저장 공간 잔여 용량 가져오기 함수 추가 👇
+        // 저장 공간 잔여 용량 가져오기 함수
         async function fetchStorageSize() {
             try {
                 const { data: totalBytes, error } = await supabase.rpc('get_storage_size');
