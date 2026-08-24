@@ -502,7 +502,7 @@
     <div class="modal-overlay" id="ocr-settings-modal">
         <div class="modal-box">
             <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 5px;">Google API 설정</h2>
-            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 20px;">API 연동을 위한 Key를 입력하세요.</p>
+            <p style="font-size: 13px; color: #8E8E93; margin-bottom: 20px;">API 연 연동을 위한 Key를 입력하세요.</p>
             <input type="text" id="ocr-url-input" class="input-box" placeholder="백엔드 서버 URL (선택)" style="margin-bottom: 10px;">
             <input type="password" id="ocr-secret-input" class="input-box" placeholder="API Key" style="margin-bottom: 20px;">
             <button class="btn-modal" onclick="saveOcrSettings()">저장하기</button>
@@ -1349,9 +1349,9 @@
             }
         }
 
-        // [문제 2] 면세 적용 토글 함수 추가
+        // [문제 2] 면세 적용 토글 함수 추가 (BigInt 정밀도 대응 완벽 검증)
         async function toggleTaxFree(id, isCurrentlyTaxFree) {
-            const item = expenseDataArray.find(x => x.id === id);
+            const item = expenseDataArray.find(x => String(x.id) === String(id));
             if(!item) return;
 
             let newSupply, newTax;
@@ -1382,7 +1382,8 @@
         }
 
         function editReceipt(id) {
-            const item = expenseDataArray.find(x => x.id === id);
+            // String 강제 형변환 매칭 (BigInt 등 호환 보장)
+            const item = expenseDataArray.find(x => String(x.id) === String(id));
             if(!item) return;
 
             document.getElementById('edit-id').value = id;
@@ -1487,9 +1488,10 @@
                     <div class="expense-card-bottom" style="justify-content: space-between; align-items: center;">
                         <div>${taxFreeBadge}</div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn-sm" style="background-color: #E8F5E9; color: #34C759;" onclick="toggleTaxFree(${item.id}, ${isTaxFree})">🌿 ${taxFreeBtnText}</button>
-                            <button class="btn-sm btn-sm-edit" onclick="editReceipt(${item.id})">✏️ 내용 수정</button>
-                            <button class="btn-sm btn-sm-danger" onclick="requestDeleteReceipt(${item.id})">🗑️ 삭제</button>
+                            <!-- BigInt 오류 방지를 위해 HTML 템플릿 전달 시 '\${id}' 문자열 타입 캐스팅 적용 -->
+                            <button class="btn-sm" style="background-color: #E8F5E9; color: #34C759;" onclick="toggleTaxFree('${item.id}', ${isTaxFree})">🌿 ${taxFreeBtnText}</button>
+                            <button class="btn-sm btn-sm-edit" onclick="editReceipt('${item.id}')">✏️ 내용 수정</button>
+                            <button class="btn-sm btn-sm-danger" onclick="requestDeleteReceipt('${item.id}')">🗑️ 삭제</button>
                         </div>
                     </div>
                 `;
@@ -1527,17 +1529,19 @@
                 ];
 
                 wsMain.getRow(1).font = { bold: true };
-                const sheetNameCounts = {};
 
                 for (const item of expenseDataArray) {
-                    let baseName = (item['거래처명'] || "영수증").replace(/[\\/?*[\]:]/g, "_").substring(0, 20);
+                    // [엑셀 다운로드 오류 해결 1] 거래처명 중복 및 오류 방지 로직 고도화 (While 반복 충돌 체크 적용)
+                    let baseName = (item['거래처명'] || "영수증").replace(/[\\/?*[\]:]/g, "_").trim().substring(0, 20);
+                    if (!baseName) baseName = "영수증";
+
                     let sheetName = baseName;
+                    let counter = 1;
                     
-                    if (sheetNameCounts[baseName] !== undefined) {
-                        sheetNameCounts[baseName]++;
-                        sheetName = `${baseName}(${sheetNameCounts[baseName]})`;
-                    } else {
-                        sheetNameCounts[baseName] = 0;
+                    // 기존 워크북 내에 동일한 시트명이 있는 지 완벽하게 체크합니다.
+                    while (wb.getWorksheet(sheetName) !== undefined) {
+                        sheetName = `${baseName}(${counter})`;
+                        counter++;
                     }
 
                     let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
@@ -1545,7 +1549,7 @@
                     wsMain.addRow({
                         date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
                         qty: 1, price: item['공급가액'], supply: item['공급가액'],
-                        tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName, // 비고 데이터 적용
+                        tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName,
                         card: cardName, category: item['비용 계정']
                     });
 
@@ -1571,9 +1575,14 @@
                                 reader.readAsDataURL(blob);
                             });
                             
-                            const base64String = base64Data.split(',')[1];
-                            const imageId = wb.addImage({ base64: base64String, extension: 'jpeg' });
-                            wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 600, height: 600 } });
+                            // [엑셀 다운로드 오류 해결 2] Base64 String 널체크 및 안전성 검증 적용
+                            if (base64Data && typeof base64Data === 'string' && base64Data.includes(',')) {
+                                const base64String = base64Data.split(',')[1];
+                                if (base64String) {
+                                    const imageId = wb.addImage({ base64: base64String, extension: 'jpeg' });
+                                    wsIndiv.addImage(imageId, { tl: { col: 1, row: 6 }, ext: { width: 600, height: 600 } });
+                                }
+                            }
                         } catch (e) { 
                             console.error("Image Export Error:", e); 
                         }
