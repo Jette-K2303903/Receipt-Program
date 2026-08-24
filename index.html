@@ -1466,7 +1466,7 @@
 
             expenseDataArray.forEach((item, index) => {
                 const imgIcon = item['이미지'] ? "🖼️ " : "";
-                // [문제 2] 면세 적용 여부 식별 및 UI 버튼/뱃지 동적 생성
+                // [문제 2] 면 대 적용 여부 식별 및 UI 버튼/뱃지 동적 생성
                 const isTaxFree = (item['부가세'] === 0 && item['합계금액'] > 0 && item['합계금액'] === item['공급가액']);
                 const taxFreeBadge = isTaxFree ? `<span style="color:#34C759; font-weight:800; font-size:14px;">[면세 적용]</span>` : '';
                 const taxFreeBtnText = isTaxFree ? '면세 해제' : '면세 적용';
@@ -1529,8 +1529,9 @@
                 wsMain.getRow(1).font = { bold: true };
                 
                 // 생성된 시트 이름들을 추적하여 중복을 원천 차단하기 위한 Set 사용
-                const usedSheetNames = new Set();
-                usedSheetNames.add("사용내역"); // 메인 시트 이름 사전 등록
+                // 엑셀은 대소문자를 구분하지 않으므로 모두 소문자로 저장하여 완벽하게 비교합니다.
+                const usedSheetNamesLower = new Set();
+                usedSheetNamesLower.add("사용내역".toLowerCase()); // 메인 시트 이름 사전 등록
 
                 for (const item of expenseDataArray) {
                     let rawVendor = item['거래처명'] || "영수증";
@@ -1542,12 +1543,12 @@
                     let sheetName = baseName;
                     let counter = 1;
                     
-                    // 중복 시트명 방지 로직 (숫자 추가)
-                    while (usedSheetNames.has(sheetName)) {
+                    // 엑셀은 대소문자를 동일하게 인식하므로, .toLowerCase() 로 변환하여 중복 검사
+                    while (usedSheetNamesLower.has(sheetName.toLowerCase())) {
                         sheetName = `${baseName}(${counter})`;
                         counter++;
                     }
-                    usedSheetNames.add(sheetName);
+                    usedSheetNamesLower.add(sheetName.toLowerCase());
 
                     let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
 
