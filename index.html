@@ -1552,19 +1552,38 @@
 
                     let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
 
-                    wsMain.addRow({
+                    // 행 추가 후 해당 Row 객체 반환받기
+                    const addedRow = wsMain.addRow({
                         date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
                         qty: 1, price: item['공급가액'], supply: item['공급가액'],
                         tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName, // 비고 데이터 적용
                         card: cardName, category: item['비용 계정']
                     });
 
+                    // [문제 2] 비고(J행) 하이퍼링크 처리
+                    const noteCell = wsMain.getCell(`J${addedRow.number}`);
+                    noteCell.value = {
+                        text: item['비고'] ? item['비고'] : sheetName,
+                        hyperlink: `#'${sheetName}'!A1`
+                    };
+                    noteCell.font = { color: { argb: 'FF007AFF' }, underline: true };
+
                     const wsIndiv = wb.addWorksheet(sheetName);
                     wsIndiv.getColumn(1).width = 15;
                     wsIndiv.getColumn(2).width = 30;
+                    wsIndiv.getColumn(3).width = 25; // 홈 버튼 텍스트가 표시될 3열(C) 넓이 여유 확보
 
                     wsIndiv.addRow(["[ 항목 ]", "[ 내용 ]"]);
                     wsIndiv.getRow(1).font = { bold: true };
+                    
+                    // [문제 3] C1 셀에 홈 버튼 생성 및 자동 이동 설정
+                    const homeCell = wsIndiv.getCell('C1');
+                    homeCell.value = {
+                        text: '🏠 홈으로 (사용내역)',
+                        hyperlink: `#'사용내역'!A1`
+                    };
+                    homeCell.font = { color: { argb: 'FF007AFF' }, underline: true, bold: true };
+
                     wsIndiv.addRow(["거래처", item['거래처명']]);
                     wsIndiv.addRow(["거래일자", item['거래일자']]);
                     wsIndiv.addRow(["결제금액", item['합계금액'].toLocaleString() + "원"]);
@@ -1589,6 +1608,36 @@
                         }
                     }
                 } 
+
+                // [문제 1] 엑셀 다운로드 시 모든 컬럼 너비를 글에 맞게 자동으로 조절
+                wsMain.columns.forEach((column) => {
+                    let maxColumnLength = 0;
+                    column.eachCell({ includeEmpty: true }, (cell) => {
+                        let cellText = "";
+                        if (cell.value) {
+                            // 하이퍼링크 객체인지 확인
+                            if (typeof cell.value === 'object' && cell.value.text) {
+                                cellText = cell.value.text.toString();
+                            } else {
+                                cellText = cell.value.toString();
+                            }
+                        }
+                        // 한글 등 다바이트 문자는 폭을 더 차지하므로 2.2배, 알파벳 등은 1.1배 가중치
+                        let actualLength = 0;
+                        for (let i = 0; i < cellText.length; i++) {
+                            actualLength += (cellText.charCodeAt(i) > 128) ? 2.2 : 1.1;
+                        }
+                        if (actualLength > maxColumnLength) {
+                            maxColumnLength = actualLength;
+                        }
+                    });
+                    // 최소 너비 10 설정 및 약간의 여백(+2) 추가
+                    column.width = Math.max(10, maxColumnLength + 2);
+                });
+
+                // [문제 4] C행 품명, D행 단위 숨김 처리 설정
+                wsMain.getColumn(3).hidden = true; // C행(품명)
+                wsMain.getColumn(4).hidden = true; // D행(단위)
 
                 const buffer = await wb.xlsx.writeBuffer();
                 saveAs(new Blob([buffer]), filename);
