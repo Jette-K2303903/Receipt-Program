@@ -242,7 +242,8 @@
             <button class="sidebar-btn" id="menu-list" onclick="switchView('list')">📋 비용 정산 목록</button>
             
             <div class="sidebar-bottom-group">
-                <button class="sidebar-btn danger" onclick="openAuthModal(processDataReset, '데이터 초기화', '데이터 초기화 권한 비밀번호를 입력하세요.')">🗑️ 데이터 초기화</button>
+                <!-- 사이드바 초기화 버튼도 동일하게 기간 설정 모달을 띄우도록 수정 -->
+                <button class="sidebar-btn danger" onclick="openResetDataModal()">🗑️ 데이터 초기화</button>
                 <div class="action-row">
                     <button class="sidebar-btn logout" onclick="processLogout()">🔒 로그아웃</button>
                     <button class="btn-icon" id="menu-settings" onclick="switchView('settings')">⚙️</button>
@@ -347,9 +348,9 @@
                         ☁️ 잔여 용량 확인 중...
                     </div>
                     <div class="header-actions">
-                        <!-- [새로운 문제 1] 다운로드 버튼 클릭 시 모달창을 열도록 변경 -->
                         <button class="btn-sm btn-sm-success" onclick="openDownloadExcelModal()">💾 엑셀 다운로드</button>
-                        <button class="btn-sm btn-sm-danger" onclick="openAuthModal(processDataReset, '목록 전체 삭제', '초기화 권한 비밀번호를 입력하세요.')">🗑️ 초기화</button>
+                        <!-- 초기화 버튼: 구간 삭제 및 팝업 분기를 위해 openResetDataModal()로 변경 -->
+                        <button class="btn-sm btn-sm-danger" onclick="openResetDataModal()">🗑️ 초기화</button>
                     </div>
                 </div>
                 
@@ -512,7 +513,7 @@
         </div>
     </div>
 
-    <!-- [새로운 문제 1] 다운로드 시 계정 선택을 위한 모달창 추가 -->
+    <!-- [다운로드] 엑셀 다운로드 시 계정 선택 및 날짜 지정을 위한 모달창 -->
     <div class="modal-overlay" id="download-excel-modal">
         <div class="modal-box" style="text-align: left;">
             <h2 style="color: #007AFF; margin-top: 0; margin-bottom: 15px; text-align: center;">💾 엑셀 다운로드</h2>
@@ -520,8 +521,35 @@
                 <label>다운로드할 계정 선택</label>
                 <select id="download-category-select" class="input-box"></select>
             </div>
+            <!-- 문제 1: 다운로드 시작 ~ 종료 지정 달력 영역 -->
+            <div class="input-group" style="margin-top:10px;">
+                <label>다운로드 기간 설정 (선택 안 할 시 전체)</label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="date" id="download-start-date" class="input-box" style="flex:1; padding: 12px 10px;">
+                    <span style="color:#8E8E93; font-weight:bold;">~</span>
+                    <input type="date" id="download-end-date" class="input-box" style="flex:1; padding: 12px 10px;">
+                </div>
+            </div>
             <button class="btn-modal" style="margin-top:15px;" onclick="executeDownloadExcel()">다운로드 실행</button>
             <button class="btn-modal btn-modal-close" onclick="document.getElementById('download-excel-modal').style.display='none'">취소</button>
+        </div>
+    </div>
+    
+    <!-- [초기화] 초기화 시 날짜 지정 및 분기를 위한 새로운 모달창 -->
+    <div class="modal-overlay" id="reset-data-modal">
+        <div class="modal-box" style="text-align: left;">
+            <h2 style="color: #FF3B30; margin-top: 0; margin-bottom: 15px; text-align: center;">🗑️ 데이터 초기화</h2>
+            <!-- 문제 2: 달력 지정 초기화 -->
+            <div class="input-group">
+                <label>초기화할 기간 설정 (선택 안 할 시 전체 삭제 경고)</label>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="date" id="reset-start-date" class="input-box" style="flex:1; padding: 12px 10px;">
+                    <span style="color:#8E8E93; font-weight:bold;">~</span>
+                    <input type="date" id="reset-end-date" class="input-box" style="flex:1; padding: 12px 10px;">
+                </div>
+            </div>
+            <button class="btn-modal" style="margin-top:15px; background-color:#FF3B30;" onclick="executePreReset()">초기화 실행</button>
+            <button class="btn-modal btn-modal-close" onclick="document.getElementById('reset-data-modal').style.display='none'">취소</button>
         </div>
     </div>
 
@@ -539,14 +567,14 @@
         let resetPassword = "a13579~~"; 
         let monthlyBudgets = {}; 
         let categoryActiveState = {}; 
-        let categoryUseTotalState = {}; // [문제 1] 합계 적용 상태 저장소 추가
+        let categoryUseTotalState = {};
         let cardList = [
             { name: "홍길동", num: "0000" },
             { name: "홍길순", num: "1234" }
         ];
         
-        // 계정별 분기통제 및 년통제 디스플레이 토글 상태 저장 객체
         let toggleQuarterlyDisplay = {};
+        let currentResetRange = { startDate: "", endDate: "" }; // 기간 초기화를 위한 객체
         
         let ocrConfig = { url: "", secret: "" }; 
         const GOOGLE_API_KEY = "AIzaSyBx1gHLqFe1gYwuEEXtgiB7c3EQKrX605U";
@@ -575,7 +603,7 @@
                 localStorage.setItem('resetPassword', resetPassword);
                 localStorage.setItem('monthlyBudgets', JSON.stringify(monthlyBudgets));
                 localStorage.setItem('categoryActiveState', JSON.stringify(categoryActiveState));
-                localStorage.setItem('categoryUseTotalState', JSON.stringify(categoryUseTotalState)); // [문제 1] 합계 상태 저장
+                localStorage.setItem('categoryUseTotalState', JSON.stringify(categoryUseTotalState));
             } catch (e) {
                 console.error("Storage Error:", e);
             }
@@ -589,7 +617,7 @@
             
             if(localStorage.getItem('monthlyBudgets')) monthlyBudgets = JSON.parse(localStorage.getItem('monthlyBudgets'));
             if(localStorage.getItem('categoryActiveState')) categoryActiveState = JSON.parse(localStorage.getItem('categoryActiveState'));
-            if(localStorage.getItem('categoryUseTotalState')) categoryUseTotalState = JSON.parse(localStorage.getItem('categoryUseTotalState')); // [문제 1] 합계 상태 로드
+            if(localStorage.getItem('categoryUseTotalState')) categoryUseTotalState = JSON.parse(localStorage.getItem('categoryUseTotalState'));
         }
 
         window.onload = function() {
@@ -638,7 +666,7 @@
                     id: 1, 
                     monthly_budgets: monthlyBudgets, 
                     active_categories: categoryActiveState,
-                    use_total_state: categoryUseTotalState, // [문제 1] 합계 상태 Supabase 동기화 추가
+                    use_total_state: categoryUseTotalState,
                     card_list: cardList,
                     login_password: loginPassword,
                     reset_password: resetPassword,
@@ -658,7 +686,7 @@
                 if (settingData) {
                     monthlyBudgets = settingData.monthly_budgets || monthlyBudgets;
                     categoryActiveState = settingData.active_categories || categoryActiveState;
-                    if(settingData.use_total_state) categoryUseTotalState = settingData.use_total_state; // [문제 1] 합계 상태 불러오기
+                    if(settingData.use_total_state) categoryUseTotalState = settingData.use_total_state;
                     if(settingData.card_list) cardList = settingData.card_list;
                     if(settingData.login_password) loginPassword = settingData.login_password;
                     if(settingData.reset_password) resetPassword = settingData.reset_password;
@@ -852,7 +880,6 @@
                         }
                     }
 
-                    // [문제 1] 합계 상태에 따라 적용 금액 분기
                     if (shouldInclude) {
                         const useTotal = categoryUseTotalState[cat] === true;
                         categoryAggregates[cat].inApp += (useTotal ? item['합계금액'] : item['공급가액']);
@@ -1098,7 +1125,6 @@
             
             if(allCats.length === 0) listContainer.innerHTML = "<p style='color:#8E8E93; font-size:13px; text-align:center;'>맵핑된 계정이 없습니다.</p>";
             else {
-                // [문제 1] 카테고리별 합계 적용 체크박스 추가
                 allCats.forEach(cat => {
                     const isChecked = categoryActiveState[cat] ? "checked" : "";
                     const isTotalChecked = categoryUseTotalState[cat] ? "checked" : "";
@@ -1123,7 +1149,7 @@
             Object.keys(categoryActiveState).forEach(cat => {
                 const checkbox = document.getElementById(`chk-${cat}`);
                 if(checkbox) categoryActiveState[cat] = checkbox.checked;
-                // [문제 1] 합계 상태 저장
+                
                 const totalCheckbox = document.getElementById(`chk-total-${cat}`);
                 if(totalCheckbox) categoryUseTotalState[cat] = totalCheckbox.checked;
             });
@@ -1158,9 +1184,10 @@
             document.getElementById('ocr-settings-modal').style.display = 'none';
         }
 
+        // 전체 데이터 초기화 처리
         async function processDataReset() {
             document.getElementById('loading-modal').style.display = 'flex';
-            document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 삭제 중...";
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "전체 데이터 삭제 중...";
             
             try {
                 const { error } = await supabase.from('receipts').delete().neq('id', 0);
@@ -1170,6 +1197,30 @@
                 updateDashboard();
                 renderExpenseList(); 
                 alert("🗑️ 모든 정산 데이터가 초기화되었습니다.");
+            } catch (error) {
+                alert("삭제 중 오류가 발생했습니다: " + error.message);
+            } finally {
+                document.getElementById('loading-modal').style.display = 'none';
+                document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 처리 중";
+            }
+        }
+
+        // 기간 지정 데이터 초기화 처리
+        async function processRangeDataReset() {
+            const { startDate, endDate } = currentResetRange;
+            document.getElementById('loading-modal').style.display = 'flex';
+            document.querySelector('#loading-modal div:nth-child(2)').innerText = "기간 데이터 삭제 중...";
+
+            try {
+                let query = supabase.from('receipts').delete().neq('id', 0);
+                if (startDate) query = query.gte('date', startDate);
+                if (endDate) query = query.lte('date', endDate);
+
+                const { error } = await query;
+                if(error) throw error;
+
+                await loadDataFromSupabase(); // 데이터 다시 불러오기 (UI 반영)
+                alert("🗑️ 지정한 기간의 정산 데이터가 삭제되었습니다.");
             } catch (error) {
                 alert("삭제 중 오류가 발생했습니다: " + error.message);
             } finally {
@@ -1364,7 +1415,6 @@
             }
         }
 
-        // [문제 2] 면세 적용 토글 함수 추가 (기존 요구사항 유지)
         async function toggleTaxFree(id, isCurrentlyTaxFree) {
             const item = expenseDataArray.find(x => x.id === id);
             if(!item) return;
@@ -1481,7 +1531,6 @@
 
             expenseDataArray.forEach((item, index) => {
                 const imgIcon = item['이미지'] ? "🖼️ " : "";
-                // [문제 2] 면 대 적용 여부 식별 및 UI 버튼/뱃지 동적 생성 (기존 로직 유지)
                 const isTaxFree = (item['부가세'] === 0 && item['합계금액'] > 0 && item['합계금액'] === item['공급가액']);
                 const taxFreeBadge = isTaxFree ? `<span style="color:#34C759; font-weight:800; font-size:14px;">[면세 적용]</span>` : '';
                 const taxFreeBtnText = isTaxFree ? '면세 해제' : '면세 적용';
@@ -1512,7 +1561,7 @@
             });
         }
 
-        // [새로운 문제 1] 다운로드 모달창 열기 함수
+        // 엑셀 다운로드 모달창 열기
         function openDownloadExcelModal() {
             if(expenseDataArray.length === 0) return alert("다운로드할 정산 데이터가 없습니다.");
 
@@ -1523,20 +1572,37 @@
             });
             
             document.getElementById('download-category-select').innerHTML = finalOptions;
+            
+            // 날짜 입력 필드 초기화
+            document.getElementById('download-start-date').value = "";
+            document.getElementById('download-end-date').value = "";
+            
             document.getElementById('download-excel-modal').style.display = 'flex';
         }
 
-        // 다운로드 실행 함수 (수정 반영)
+        // 다운로드 실행 함수
         async function executeDownloadExcel() {
             document.getElementById('download-excel-modal').style.display = 'none';
             
             const selectedCategory = document.getElementById('download-category-select').value;
-            const targetData = selectedCategory === "ALL" 
+            const startDate = document.getElementById('download-start-date').value;
+            const endDate = document.getElementById('download-end-date').value;
+
+            // 계정 선택 분기
+            let targetData = selectedCategory === "ALL" 
                 ? expenseDataArray 
                 : expenseDataArray.filter(item => item['비용 계정'] === selectedCategory);
+                
+            // 날짜 필터링 적용
+            if (startDate) {
+                targetData = targetData.filter(item => item['거래일자'] >= startDate);
+            }
+            if (endDate) {
+                targetData = targetData.filter(item => item['거래일자'] <= endDate);
+            }
 
             if(targetData.length === 0) {
-                return alert("해당 계정에 다운로드할 데이터가 없습니다.");
+                return alert("해당 조건(계정 및 지정된 기간)에 다운로드할 데이터가 없습니다.");
             }
 
             document.getElementById('loading-modal').style.display = 'flex';
@@ -1550,7 +1616,6 @@
                 const catNameStr = selectedCategory === "ALL" ? "전체" : selectedCategory;
                 const filename = `${mm}${dd}_비용정리내역_${catNameStr}.xlsx`;
 
-                // [새로운 문제 3] 눈금선 없애기 (views: [{ showGridLines: false }])
                 const wsMain = wb.addWorksheet("사용내역", { views: [{ showGridLines: false }] });
                 wsMain.columns = [
                     { header: '거래일자', key: 'date', width: 12 },
@@ -1569,18 +1634,15 @@
 
                 wsMain.getRow(1).font = { bold: true };
                 
-                // [새로운 문제 3, 4] 헤더 행에 테두리 및 가운데 정렬 적용
                 wsMain.getRow(1).eachCell({ includeEmpty: true }, function(cell) {
                     cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                     cell.alignment = { vertical: 'middle', horizontal: 'center' };
                 });
                 
-                // 생성된 시트 이름들을 추적하여 중복을 원천 차단하기 위한 Set 사용
                 const usedSheetNamesLower = new Set();
-                usedSheetNamesLower.add("사용내역".toLowerCase()); // 메인 시트 이름 사전 등록
+                usedSheetNamesLower.add("사용내역".toLowerCase()); 
 
                 for (const item of targetData) {
-                    // [새로운 문제 2] 시트명을 비고명 기준으로 (공란인 경우 거래처명)
                     let rawName = item['비고'] ? item['비고'] : (item['거래처명'] || "영수증");
                     let baseName = rawName.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s]/g, '').trim().substring(0, 20);
                     if (!baseName) baseName = "영수증";
@@ -1596,21 +1658,18 @@
 
                     let cardName = item['결제 카드'] ? item['결제 카드'].split('(')[0].trim() : "-";
 
-                    // 행 추가 후 해당 Row 객체 반환받기
                     const addedRow = wsMain.addRow({
                         date: item['거래일자'], vendor: item['거래처명'], item: "-", unit: "-",
                         qty: 1, price: item['공급가액'], supply: item['공급가액'],
-                        tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName, // 비고 데이터 적용
+                        tax: item['부가세'], total: item['합계금액'], note: item['비고'] ? item['비고'] : sheetName, 
                         card: cardName, category: item['비용 계정']
                     });
 
-                    // [새로운 문제 3, 4] 데이터 행에 테두리 및 가운데 정렬 적용
                     addedRow.eachCell({ includeEmpty: true }, function(cell) {
                         cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
                         cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     });
 
-                    // 비고(J행) 하이퍼링크 처리 (기존 로직 유지)
                     const noteCell = wsMain.getCell(`J${addedRow.number}`);
                     noteCell.value = {
                         text: item['비고'] ? item['비고'] : sheetName,
@@ -1618,16 +1677,14 @@
                     };
                     noteCell.font = { color: { argb: 'FF007AFF' }, underline: true };
 
-                    // [새로운 문제 3] 개별 시트에도 눈금선 없애기 적용
                     const wsIndiv = wb.addWorksheet(sheetName, { views: [{ showGridLines: false }] });
                     wsIndiv.getColumn(1).width = 15;
                     wsIndiv.getColumn(2).width = 30;
-                    wsIndiv.getColumn(3).width = 25; // 홈 버튼 텍스트가 표시될 3열(C) 넓이 여유 확보
+                    wsIndiv.getColumn(3).width = 25; 
 
                     wsIndiv.addRow(["[ 항목 ]", "[ 내용 ]"]);
                     wsIndiv.getRow(1).font = { bold: true };
                     
-                    // C1 셀에 홈 버튼 생성 및 자동 이동 설정 (기존 로직 유지)
                     const homeCell = wsIndiv.getCell('C1');
                     homeCell.value = {
                         text: '🏠 홈으로 (사용내역)',
@@ -1641,7 +1698,6 @@
                     wsIndiv.addRow(["결제카드", item['결제 카드']]);
                     wsIndiv.addRow(["첨부파일", "↓ 아래 영수증 원본 사진 참조"]);
                     
-                    // [새로운 문제 3, 4] 개별 시트 데이터 칸에도 테두리 및 가운데 정렬 적용
                     wsIndiv.eachRow((row) => {
                         row.eachCell({ includeEmpty: true }, (cell) => {
                             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
@@ -1668,7 +1724,6 @@
                     }
                 } 
 
-                // 모든 컬럼 너비를 글에 맞게 자동으로 조절 (기존 로직 유지)
                 wsMain.columns.forEach((column) => {
                     let maxColumnLength = 0;
                     column.eachCell({ includeEmpty: true }, (cell) => {
@@ -1691,10 +1746,9 @@
                     column.width = Math.max(10, maxColumnLength + 2);
                 });
 
-                // [새로운 문제 4] C행(품명), D행(단위), E행(수량) 숨김 처리 설정
-                wsMain.getColumn(3).hidden = true; // C행(품명)
-                wsMain.getColumn(4).hidden = true; // D행(단위)
-                wsMain.getColumn(5).hidden = true; // E행(수량)
+                wsMain.getColumn(3).hidden = true; 
+                wsMain.getColumn(4).hidden = true; 
+                wsMain.getColumn(5).hidden = true; 
 
                 const buffer = await wb.xlsx.writeBuffer();
                 saveAs(new Blob([buffer]), filename);
@@ -1705,6 +1759,33 @@
             } finally {
                 document.getElementById('loading-modal').style.display = 'none';
                 document.querySelector('#loading-modal div:nth-child(2)').innerText = "데이터 처리 중";
+            }
+        }
+
+        // [초기화] 초기화 데이터 모달창 열기
+        function openResetDataModal() {
+            document.getElementById('reset-start-date').value = "";
+            document.getElementById('reset-end-date').value = "";
+            document.getElementById('reset-data-modal').style.display = 'flex';
+        }
+
+        // [초기화] 모달창에서 초기화 실행 눌렀을 때 분기 처리
+        function executePreReset() {
+            const startDate = document.getElementById('reset-start-date').value;
+            const endDate = document.getElementById('reset-end-date').value;
+
+            document.getElementById('reset-data-modal').style.display = 'none';
+
+            if (startDate || endDate) {
+                // 시작이나 종료 날짜 중 하나라도 지정된 경우 -> 기간 삭제 인증으로 이동
+                currentResetRange = { startDate, endDate };
+                let msg = `지정한 기간(${startDate || '전체'} ~ ${endDate || '전체'})의 데이터를 삭제하시려면 권한 비밀번호를 입력하세요.`;
+                openAuthModal(processRangeDataReset, '기간 데이터 삭제', msg);
+            } else {
+                // 아무 날짜도 지정하지 않고 초기화 누른 경우 -> 최종 전체 삭제 경고 팝업 생성
+                if (confirm("⚠️ 날짜가 지정되지 않았습니다.\n\n정말 [전체 데이터]를 삭제하시겠습니까?\n(이 작업은 되돌릴 수 없습니다)")) {
+                    openAuthModal(processDataReset, '전체 데이터 삭제', '전체 초기화 권한 비밀번호를 입력하세요.');
+                }
             }
         }
 
@@ -1725,10 +1806,8 @@
 
                 const badge = document.getElementById('storage-badge');
                 if (badge) {
-                    // 잔여 용량 및 퍼센트로 표시 (요청하신 포맷 적용)
                     badge.innerHTML = `☁️ 잔여 용량 : ${remainPercent.toFixed(1)}% (${remainMB.toFixed(1)}MB)`;
                     
-                    // 만약 잔여 용량이 10% 이하로 떨어지면 경고(빨간색)로 변경
                     if (remainPercent <= 10) {
                         badge.style.background = '#FFF2F2';
                         badge.style.color = '#FF3B30';
