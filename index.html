@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -2786,11 +2786,38 @@
       if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
     }
+    // 수정내역 시간 표시: [yy.mm.dd hh:mm]
+    function fmtLogTime(t) {
+      const m = String(t || '').match(/(\d{4})\.?\s*(\d{1,2})\.?\s*(\d{1,2})\.?\s*(?:오전|오후)?\s*(\d{1,2}):(\d{2})/);
+      if (!m) return String(t || '');
+      const p2 = n => String(n).padStart(2, '0');
+      return `${m[1].slice(2)}.${p2(m[2])}.${p2(m[3])} ${p2(m[4])}:${m[5]}`;
+    }
+    function fmtLogLine(l) { return `[${fmtLogTime(l.time)}](${l.author || ''})`; }
+    // 발주 정보(고객사/온도/품목지정/재고타입/전체 발주량)를 order_data 에서 찾아 기록에 함께 저장
+    async function fetchOrderInfo(storeCode, productCode, docDate) {
+      if (!supabaseClient || !storeCode || !productCode) return {};
+      try {
+        const { data, error } = await supabaseClient.from('order_data')
+          .select('delivery_date,client_code,client_name,temperature,item_designation,stock_type,order_qty')
+          .eq('store_code', storeCode).eq('product_code', productCode)
+          .order('delivery_date', { ascending: false }).limit(60);
+        if (error || !data || !data.length) return {};
+        const same = data.filter(r => r.delivery_date === docDate);
+        const rows = same.length ? same : data.filter(r => r.delivery_date === data[0].delivery_date);
+        const f = rows[0];
+        const qty = rows.reduce((a, r) => a + (Number(r.order_qty) || 0), 0);
+        return { deliveryDate: f.delivery_date || '', clientCode: f.client_code || '', clientName: f.client_name || '', temperature: f.temperature || '',
+          itemDesignation: f.item_designation || '', stockType: f.stock_type || '', orderQty: qty };
+      } catch (e) { console.warn('발주 정보 조회 실패', e); return {}; }
+    }
     function incidentRowToRecord(row) {
       return {
         id: row.id, docDate: row.doc_date, author: row.author, reason: row.reason || '',
         storeName: row.store_name || '', driver: row.driver || '', storeCode: row.store_code || '', mainCenter: row.main_center || '',
         productName: row.product_name || '', productCode: row.product_code || '', inboundCenter: row.inbound_center || '',
+        deliveryDate: row.delivery_date || '', clientCode: row.client_code || '', clientName: row.client_name || '', temperature: row.temperature || '',
+        itemDesignation: row.item_designation || '', stockType: row.stock_type || '', orderQty: row.order_qty ?? null,
         productQuantity: row.product_quantity || 0, unitDisplay: row.unit_display || '', detailContent: row.detail_content || '',
         historyLogs: Array.isArray(row.history_logs) ? row.history_logs : [],
         status: row.status || 'active', deleteRequestedBy: row.delete_requested_by, deleteRequestedAt: row.delete_requested_at,
@@ -2804,6 +2831,8 @@
         id: r.id, doc_date: r.docDate, author: r.author, reason: r.reason || null,
         store_name: r.storeName, store_code: r.storeCode || null, driver: r.driver || null, main_center: r.mainCenter || null,
         product_name: r.productName, product_code: r.productCode || null, inbound_center: r.inboundCenter || null,
+        delivery_date: r.deliveryDate || null, client_code: r.clientCode || null, client_name: r.clientName || null, temperature: r.temperature || null,
+        item_designation: r.itemDesignation || null, stock_type: r.stockType || null, order_qty: r.orderQty ?? null,
         unit_display: r.unitDisplay || null, product_quantity: r.productQuantity || 0, detail_content: r.detailContent || null,
         history_logs: r.historyLogs || [], status: r.status || 'active',
         delete_requested_by: r.deleteRequestedBy || null, delete_requested_at: r.deleteRequestedAt || null,
@@ -3077,9 +3106,8 @@
             <div class="space-y-1 mt-0.5">
               ${logs.map((log, idx) => `
                 <div class="text-[11px] leading-tight flex items-start space-x-1">
-                  <span class="text-purple-900 font-semibold font-mono whitespace-nowrap">[${log.time}]</span>
-                  <span class="text-purple-800 font-medium">(${log.author})</span>
-                  <span class="text-gray-700">${log.reason || '수정사유 미입력'}</span>
+                  <span class="text-purple-900 font-semibold font-mono whitespace-nowrap">[${fmtLogTime(log.time)}]</span>
+                  <span class="text-purple-800 font-medium">(${svEsc(log.author || '')})</span>
                 </div>
               `).join('')}
             </div>
@@ -3089,9 +3117,8 @@
           const latestLog = logs[logs.length - 1];
           historyMarkup = `
             <div class="text-[11px] leading-tight flex items-start space-x-1 mt-0.5">
-              <span class="text-purple-900 font-semibold font-mono whitespace-nowrap">[최신 ${latestLog.time}]</span>
-              <span class="text-purple-800 font-medium">(${latestLog.author})</span>
-              <span class="text-gray-700">${latestLog.reason || '수정사유 미입력'}</span>
+              <span class="text-purple-900 font-semibold font-mono whitespace-nowrap">[${fmtLogTime(latestLog.time)}]</span>
+              <span class="text-purple-800 font-medium">(${svEsc(latestLog.author || '')})</span>
             </div>
           `;
         }
@@ -3247,6 +3274,12 @@
       renderUhCalendar();
     }
     // 엑셀 양식은 추후 디자인 예정 - 이 함수의 열 구성만 바꾸면 됩니다.
+    const UH_COLS = [['배송일자',12],['메인센터',14],['고객사코드',12],['고객사명',16],['거래처코드',12],['거래처명',18],['제품코드',14],['제품명',22],['온도',8],['단위',12],['품목지정',10],['재고타입',10],['수량',8],['전체 발주량',12],['내용',24],['상세내용',30],['수정사유',40]];
+    function uhMainRow(r) {
+      return [r.deliveryDate || r.docDate || '', r.mainCenter || '', r.clientCode || '', r.clientName || '', r.storeCode || '', r.storeName || '', r.productCode || '', r.productName || '',
+        r.temperature || '', r.unitDisplay || '', r.itemDesignation || '', r.stockType || '', r.productQuantity ?? '', r.orderQty ?? '', r.reason || '', r.detailContent || '',
+        (r.historyLogs || []).map(l => `${fmtLogLine(l)}${l.reason ? ' ' + l.reason : ''}`).join('\n')];
+    }
     function uhBuildExcelPlain(records, tag) {
       if (typeof XLSX === 'undefined') {
         showToastNotification('다운로드 불가', '엑셀 라이브러리를 불러오지 못했습니다.', 'warning');
@@ -3258,16 +3291,10 @@
       }
       const sorted = records.map((r, i) => ({ r, i }))
         .sort((a, b) => (b.r.docDate || '').localeCompare(a.r.docDate || '') || a.i - b.i).map(x => x.r);
-      const aoa = [['등록일자', '매장명', '매장코드', '제품명', '제품코드', '수량', '단위', '사유', '작성자', '배차기사', '입고센터', '비고', '수정내역', '상태']];
-      sorted.forEach(r => aoa.push([
-        r.docDate || '', r.storeName || '', r.storeCode || '', r.productName || '', r.productCode || '',
-        r.productQuantity ?? '', r.unitDisplay || '', r.reason || '', r.author || '', r.driver || '',
-        r.inboundCenter || '', r.detailContent || '',
-        (r.historyLogs || []).map(l => `[${l.time}] ${l.author} ${l.reason || ''}`).join('\n'),
-        r.status === 'delete_requested' ? '삭제요청' : '정상'
-      ]));
+      const aoa = [UH_COLS.map(c => c[0])];
+      sorted.forEach(r => aoa.push(uhMainRow(r)));
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [12, 16, 12, 18, 14, 8, 12, 14, 10, 24, 18, 30, 36, 10].map(w => ({ wch: w }));
+      ws['!cols'] = UH_COLS.map(c => ({ wch: c[1] }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '업로드 내역');
       const fileName = `업로드내역_${tag}.xlsx`;
@@ -3295,21 +3322,21 @@
         }
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet('업로드 내역');
-        ws.columns = [12, 16, 12, 18, 14, 8, 12, 14, 10, 24, 18, 30, 36, 10, 12].map(w => ({ width: w }));
-        const head = ws.addRow(['등록일자', '매장명', '매장코드', '제품명', '제품코드', '수량', '단위', '사유', '작성자', '배차기사', '입고센터', '비고', '수정내역', '상태', '사진']);
+        ws.columns = UH_COLS.map(c => ({ width: c[1] }));
+        const head = ws.addRow(UH_COLS.map(c => c[0]));
         head.font = { bold: true }; head.alignment = { horizontal: 'center' };
         head.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E5EA' } }; });
         sorted.forEach(r => {
-          const row = ws.addRow([r.docDate || '', r.storeName || '', r.storeCode || '', r.productName || '', r.productCode || '', r.productQuantity ?? '', r.unitDisplay || '', r.reason || '', r.author || '', r.driver || '',
-            r.inboundCenter || '', r.detailContent || '', (r.historyLogs || []).map(l => `[${l.time}] ${l.author} ${l.reason || ''}`).join('\n'), r.status === 'delete_requested' ? '삭제요청' : '정상', '']);
-          row.getCell(13).alignment = { wrapText: true, vertical: 'top' };
+          const row = ws.addRow(uhMainRow(r));
+          row.getCell(17).alignment = { wrapText: true, vertical: 'top' };
+          row.getCell(16).alignment = { wrapText: true, vertical: 'top' };
           const nm = nameOf.get(r.id);
-          if (nm) { row.getCell(15).value = { text: `사진 ${r.photos.length}장`, hyperlink: `#'${nm.replace(/'/g, "''")}'!A1` }; row.getCell(15).font = { color: { argb: 'FF0563C1' }, underline: true }; }
+          if (nm) { row.getCell(15).value = { text: r.reason || `사진 ${r.photos.length}장`, hyperlink: `#'${nm.replace(/'/g, "''")}'!A1` }; row.getCell(15).font = { color: { argb: 'FF0563C1' }, underline: true }; }
         });
         withPhotos.forEach(r => {
           const sh = wb.addWorksheet(nameOf.get(r.id));
           sh.columns = [{ width: 14 }, { width: 34 }, { width: 14 }, { width: 14 }, { width: 14 }];
-          const info = [['등록일자', r.docDate || ''], ['매장명', r.storeName || ''], ['매장코드', r.storeCode || ''], ['제품명', r.productName || ''], ['제품코드', r.productCode || ''],
+          const info = [['등록일자', r.docDate || ''], ['매장코드', r.storeCode || ''], ['매장명', r.storeName || ''], ['제품코드', r.productCode || ''], ['제품명', r.productName || ''],
             ['수량', `${r.productQuantity ?? ''} ${r.unitDisplay || ''}`.trim()], ['사유', r.reason || ''], ['작성자', r.author || ''], ['배차기사', r.driver || ''], ['입고센터', r.inboundCenter || ''], ['비고', r.detailContent || '']];
           info.forEach(kv => { const row = sh.addRow(kv); row.getCell(1).font = { bold: true }; row.getCell(2).alignment = { horizontal: 'left', wrapText: true, vertical: 'top' }; });
           sh.getCell('D1').value = { text: '← 목록으로', hyperlink: "#'업로드 내역'!A1" };
@@ -3548,8 +3575,16 @@
         });
 
         const oldPhotos = uploadHistoryRecords[index].photos || [];
+        const prev = uploadHistoryRecords[index];
+        let orderInfo = {};
+        if (storeCode !== prev.storeCode || productCode !== prev.productCode || docDate !== prev.docDate || prev.orderQty == null) {
+          showBusy('발주 정보 확인 중...');
+          orderInfo = await fetchOrderInfo(storeCode, productCode, docDate);
+          hideBusy();
+        }
         const updated = {
           ...uploadHistoryRecords[index],
+          ...orderInfo,
           docDate,
           author,
           reason,
@@ -8483,7 +8518,11 @@
         });
       } else {
         // 신규 내역 등록
+        showBusy('발주 정보 확인 중...');
+        const orderInfo = await fetchOrderInfo(storeCode, productCode, docDate);
+        hideBusy();
         const newRecord = {
+          ...orderInfo,
           id: incidentNewId(),
           docDate,
           author,
