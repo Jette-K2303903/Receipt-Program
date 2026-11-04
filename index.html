@@ -480,13 +480,14 @@
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">작성일자</label>
               <input type="date" id="docDate" class="flex-1 font-medium text-[15px] text-gray-800">
             </div>
-            <div class="flex items-center px-4 py-3">
+            <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">작성자*</label>
-              <input type="text" id="author" placeholder="홍길동" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="author" placeholder="홍길동" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <div id="authorSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
             </div>
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">사유</label>
-              <input type="text" id="reason" placeholder="파손, 오배송, 단순반품 등" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="reason" placeholder="사유를 기입하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
               
               <!-- 사유 자동완성/추천 목록 박스 -->
               <div id="reasonSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -502,7 +503,7 @@
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow overflow-visible relative">
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">매장명*</label>
-              <input type="text" id="storeName" placeholder="예: 부산역점, 강남본점" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="storeName" placeholder="매장명을 입력하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
               
               <!-- 자동완성 목록 -->
               <div id="storeSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -545,7 +546,7 @@
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow overflow-visible relative">
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">제품명*</label>
-              <input type="text" id="productName" placeholder="예: 유기농 우유 1L, 코카콜라" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="productName" placeholder="제품명을 입력하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
 
               <!-- 제품명 자동완성 -->
               <div id="productSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -594,9 +595,9 @@
 
         <!-- 섹션 4: 비고 / 상세내용 -->
         <div class="full-col-pc">
-          <div class="px-3 pb-1 text-[12px] font-medium text-gray-500 uppercase tracking-wider">비고 / 상세내용</div>
+          <div class="px-3 pb-1 text-[12px] font-medium text-gray-500 uppercase tracking-wider">상세내용</div>
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow p-3">
-            <textarea id="detailContent" rows="3" placeholder="특이사항이나 입고 불량 내용 등을 자유롭게 입력해주세요." class="w-full text-[15px] resize-none leading-relaxed"></textarea>
+            <textarea id="detailContent" rows="3" placeholder="상세내용을 자유롭게 입력해주세요" class="w-full text-[15px] resize-none leading-relaxed"></textarea>
           </div>
         </div>
 
@@ -1345,7 +1346,7 @@
             <span id="contactUploadStats" class="font-mono text-gray-400">0행 (0자)</span>
           </div>
           <div class="flex-1 relative bg-gray-50/90 rounded-2xl border border-gray-200 focus-within:border-indigo-500 focus-within:bg-white transition-all overflow-hidden p-3 shadow-inner">
-            <textarea id="contactUploadTextarea" rows="8" placeholder="예시:&#10;홍길동&#09;010-1234-5678&#09;팀장&#10;이순신&#09;010-9876-5432&#09;과장" class="w-full h-full text-[13px] font-mono leading-relaxed resize-none text-gray-800 outline-none bg-transparent placeholder:text-gray-400"></textarea>
+            <textarea id="contactUploadTextarea" rows="8" placeholder="예시:&#10;작성자&#09;010-1234-5678&#09;팀장&#10;이순신&#09;010-9876-5432&#09;과장" class="w-full h-full text-[13px] font-mono leading-relaxed resize-none text-gray-800 outline-none bg-transparent placeholder:text-gray-400"></textarea>
           </div>
         </div>
 
@@ -2283,6 +2284,56 @@
         if (!item) return;
         reasonInput.value = item.getAttribute('data-reason-val');
         reasonSuggestBox.classList.add('hidden');
+      });
+    }
+
+    // 작성자 추천: 연락처 > 현장 연락처 > 성명
+    const authorInput = document.getElementById('author');
+    const authorSuggestBox = document.getElementById('authorSuggestBox');
+    let authorNameCache = null;
+    async function loadAuthorNames() {
+      if (typeof contactDatabase !== 'undefined' && contactDatabase.field && contactDatabase.field.length) return contactDatabase.field;
+      if (authorNameCache) return authorNameCache;
+      if (!supabaseClient) return [];
+      try {
+        const { data, error } = await supabaseClient.from('contacts').select('name,role').eq('category', 'field').order('name').limit(2000);
+        if (error) throw error;
+        authorNameCache = (data || []).filter(r => r.name);
+        return authorNameCache;
+      } catch (e) { console.warn('현장 연락처 조회 실패', e); return []; }
+    }
+    async function renderAuthorSuggest(keyword = '') {
+      if (!authorSuggestBox) return;
+      const list = await loadAuthorNames();
+      if (authorInput.value.trim() !== keyword) return;
+      const seen = new Set();
+      const filtered = list.filter(r => {
+        if (!r.name || seen.has(r.name)) return false; seen.add(r.name);
+        return !keyword || r.name.toLowerCase().includes(keyword.toLowerCase());
+      });
+      if (!filtered.length) { authorSuggestBox.classList.add('hidden'); return; }
+      authorSuggestBox.innerHTML = filtered.map(r => `
+        <div class="px-4 py-2.5 hover:bg-blue-50 active:bg-blue-100 flex items-center justify-between cursor-pointer transition-colors" data-author-val="${svEsc(r.name)}">
+          <div class="flex items-center space-x-2">
+            <i class="ph-bold ph-user text-gray-400 text-xs"></i>
+            <span class="text-[14px] text-gray-800">${svEsc(r.name)}</span>
+            ${r.role && r.role !== '-' ? `<span class="text-[11px] text-gray-400">${svEsc(r.role)}</span>` : ''}
+          </div>
+          <i class="ph-bold ph-arrow-up-left text-xs text-gray-300"></i>
+        </div>`).join('');
+      authorSuggestBox.classList.remove('hidden');
+    }
+    if (authorInput) {
+      authorInput.addEventListener('focus', () => renderAuthorSuggest(authorInput.value.trim()));
+      authorInput.addEventListener('input', () => renderAuthorSuggest(authorInput.value.trim()));
+      authorSuggestBox.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-author-val]');
+        if (!item) return;
+        authorInput.value = item.getAttribute('data-author-val');
+        authorSuggestBox.classList.add('hidden');
+      });
+      document.addEventListener('click', (e) => {
+        if (!authorInput.contains(e.target) && !authorSuggestBox.contains(e.target)) authorSuggestBox.classList.add('hidden');
       });
     }
 
@@ -4860,7 +4911,7 @@
         return {
           origin: origin,
           dest: '-',
-          affil: '-',
+          affil: '구간',
           carNum: cleanCarNumber(r.carNum),
           ton: r.ton || '-',
           time: r.arrivalTime || '',
@@ -6322,7 +6373,7 @@
       const dot = document.getElementById('sbStatusDot'), txt = document.getElementById('sbStatusText');
       if (!dot || !txt) return;
       dot.className = `inline-block w-2 h-2 rounded-full ${supabaseClient ? 'bg-[#34C759]' : 'bg-[#FF9500]'}`;
-      txt.textContent = supabaseClient ? 'Supabase 설정됨 · 연결 테스트로 확인' : 'Supabase 미설정 (테스트 모드)';
+      txt.textContent = supabaseClient ? '연결 테스트로 확인' : 'Supabase 미설정 (테스트 모드)';
     }
     async function testSupabaseConnection() {
       if (!supabaseClient) {
@@ -6424,7 +6475,7 @@
       const rows = parsed.rows;
       uploadInProgress = true;
       startUploadProgressAnim();
-      showProgressModal(color, `${label} 데이터 업로드 중`, supabaseClient ? 'Supabase에 데이터를 저장하는 중입니다...' : '테스트 모드: Supabase 미연결 (저장 시뮬레이션)');
+      showProgressModal(color, `${label} 데이터 업로드 중`, supabaseClient ? '데이터를 저장하는 중입니다...' : '테스트 모드: Supabase 미연결 (저장 시뮬레이션)');
       uploadTargetPercent = 8;
 
       try {
@@ -8045,7 +8096,7 @@
         await settingsSave([{ key: 'cost_views', value: nextIdents }]);
       });
       hideBusy();
-      if (!res.ok) { costShowBudgetResult(false, 'Supabase 저장에 실패하여 예산이 적용되지 않았습니다. 알림 내용을 확인한 뒤 다시 시도해주세요.'); return; }
+      if (!res.ok) { costShowBudgetResult(false, '저장에 실패하여 예산이 적용되지 않았습니다. 알림 내용을 확인한 뒤 다시 시도해주세요.'); return; }
       costRows = yearRows; costItems = items; costFiscalYear = year; costViews = nextViews;
       costState.overrides = {};
       ta.value = '';
@@ -8053,7 +8104,7 @@
       const extraParts = [];
       if (skipped) extraParts.push(`${year}년이 아닌 ${skipped}행은 제외했습니다.`);
       if (errors.length) extraParts.push(`<span class="font-semibold">오류로 제외된 ${errors.length}행</span><br>${errors.slice(0, 5).map(svEsc).join('<br>')}${errors.length > 5 ? '<br>…' : ''}`);
-      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 Supabase에 저장되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
+      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 저장되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
       showToastNotification('예산 적용 완료', `${items.length}개 계정이 저장되었습니다.`, 'success');
     }
     function costResetBudget() {
