@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -2117,7 +2116,7 @@
 
     // [DEV 전용] 외부 접속이 막힌 환경(캔버스 미리보기 등)에서 네트워크 오류가 나면 샘플 데이터/시뮬레이션으로 동작합니다.
     // 배포(운영) 전에는 반드시 false 로 바꾸세요.
-    const DEV_OFFLINE_FALLBACK = true;
+    const DEV_OFFLINE_FALLBACK = false;   // 실서비스: 연결 실패 시 임시(샘플/1234 로그인) 동작 없음. 캔버스 미리보기 테스트 때만 true
     function isNetworkError(err) {
       return !!err && !err.code && /fetch|network|load failed|aborted/i.test(String(err.message || err));
     }
@@ -3804,8 +3803,7 @@
             isSuccess = true;
           }
         } else {
-          // [DEV 전용] Supabase 연결 전 임시 로그인 (테스트 비밀번호: 1234) - 연동 시 삭제
-          if (inputPw === '1234') isSuccess = true;
+          showToastNotification('연결 설정 필요', 'Supabase에 연결되지 않아 로그인할 수 없습니다. 접속 설정을 확인해주세요.', 'warning');
         }
       } catch (err) {
         console.error('로그인 통신 예외:', err);
@@ -7116,6 +7114,14 @@
       costRenderList();
       return costReceiptsLoad().then(() => { costRenderList(); costRenderHome(); });
     }
+    // 비용관리 진입 시 예산·카드·표시 설정·영수증을 Supabase에서 함께 불러옵니다.
+    async function costReloadAll() {
+      costReceiptsState = { status: 'loading', message: '' };
+      costRenderList();
+      const [okB] = await Promise.all([costBudgetLoad(), costReceiptsLoad()]);
+      costRenderHome(); costRenderList();
+      if (!okB) showToastNotification('예산 불러오기 실패', costBudgetState.message, 'warning');
+    }
     async function costToggleExclude(id) {
       const r = costReceipts.find(x => x.id === id);
       if (!r) return;
@@ -7381,7 +7387,7 @@
       costRenderCards();
       document.getElementById('costCardName').focus();
     }
-    function costSaveCard() {
+    async function costSaveCard() {
       const name = document.getElementById('costCardName').value.trim();
       const last4 = document.getElementById('costCardLast4').value.replace(/\D/g, '');
       if (!name || last4.length !== 4) {
@@ -7392,13 +7398,20 @@
         showToastNotification('중복 카드', '같은 이름과 번호의 카드가 이미 등록되어 있습니다.', 'warning');
         return;
       }
-      // TODO(Supabase): payment_cards 테이블 insert / update
+      const cardId = costCardEditingId || incidentNewId();
+      showBusy('저장 중...');
+      const res = await dbRun('카드 저장', async () => {
+        const { error } = await supabaseClient.from(COST_CARD_TABLE).upsert({ id: cardId, name, last4, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+        if (error) throw error;
+      });
+      hideBusy();
+      if (!res.ok) return;
       if (costCardEditingId) {
         const c = costCards.find(x => x.id === costCardEditingId);
         c.name = name; c.last4 = last4;
         showToastNotification('수정 완료', `${name} 카드가 수정되었습니다.`, 'success');
       } else {
-        costCards.push({ id: 'card-' + Date.now(), name, last4 });
+        costCards.push({ id: cardId, name, last4 });
         showToastNotification('등록 완료', `${name} 카드가 추가되었습니다.`, 'success');
       }
       costResetCardForm();
@@ -7406,7 +7419,14 @@
     function costDeleteCard(id) {
       const c = costCards.find(x => x.id === id);
       if (!c) return;
-      showConfirmModal(() => {
+      showConfirmModal(async () => {
+        showBusy('삭제 중...');
+        const res = await dbRun('카드 삭제', async () => {
+          const { error } = await supabaseClient.from(COST_CARD_TABLE).delete().eq('id', id);
+          if (error) throw error;
+        });
+        hideBusy();
+        if (!res.ok) return;
         costCards = costCards.filter(x => x.id !== id);
         if (costCardEditingId === id) costResetCardForm(); else costRenderCards();
         showToastNotification('삭제 완료', `${c.name} 카드가 삭제되었습니다.`, 'success');
@@ -7419,11 +7439,12 @@
       const lines = t.split(/\r\n|\r|\n/).filter(l => l.trim()).length;
       document.getElementById('costBudgetStats').textContent = `${lines.toLocaleString()}행 (${t.length.toLocaleString()}자)`;
     }
+    const COST_CTRL_MAP = { '분기통제': 'quarter', '분기': 'quarter', '분기별': 'quarter', '월통제': 'month', '월': 'month', '월별': 'month',
+                           '년통제': 'year', '연통제': 'year', '연간통제': 'year', '년': 'year', '연': 'year', '연간': 'year' };
     const COST_HEADERS = ['회계월', '부서코드', '부서명', '계정코드', '계정명', '합산계정', '예외처리', '통제여부', '통제코드', '통제명', '예산', '실적', '진행중', '잔액'];
     function costParseBudget(text) {
       const rows = [], errors = [];
-      const CTRL = { '분기통제': 'quarter', '분기': 'quarter', '분기별': 'quarter', '월통제': 'month', '월': 'month', '월별': 'month',
-                     '년통제': 'year', '연통제': 'year', '연간통제': 'year', '년': 'year', '연': 'year', '연간': 'year' };
+      const CTRL = COST_CTRL_MAP;
       const num = v => { const t = String(v ?? '').replace(/[,\s원₩]/g, ''); if (t === '') return 0; const n = Number(t); return isFinite(n) ? n : NaN; };
       const parseYm = v => {
         const m = String(v ?? '').trim().match(/^(\d{4})\s*[-./년]?\s*(\d{1,2})(?:\s*월)?(?:[-./]\d{1,2})?\s*$/);
@@ -7454,6 +7475,61 @@
       });
       return { rows, errors };
     }
+    // ===== 예산/카드/표시 설정 Supabase 연동 =====
+    const COST_BUDGET_TABLE = 'cost_budget_rows', COST_CARD_TABLE = 'cost_cards';
+    let costBudgetState = { status: 'idle', message: '' };
+    const costIdent = a => a.deptCode + '|' + (a.code || a.name);
+    function costRowToDb(r) {
+      return { fiscal_year: r.y, fiscal_month: r.m, dept_code: r.deptCode, dept_name: r.deptName, acc_code: r.accCode, acc_name: r.accName,
+        sum_acc: r.sumAcc, exception: r.exception, control_flag: r.ctrlFlag, control_code: r.ctrlCode, control_name: r.ctrlName,
+        budget: r.budget, actual: r.actual, pending: r.pending, balance: r.balance };
+    }
+    function costDbToRow(d) {
+      const cn = d.control_name || '';
+      return { y: d.fiscal_year, m: d.fiscal_month, deptCode: d.dept_code || '', deptName: d.dept_name || '', accCode: d.acc_code || '', accName: d.acc_name,
+        sumAcc: d.sum_acc || '', exception: d.exception || '', ctrlFlag: d.control_flag || '', ctrlCode: d.control_code || '', ctrlName: cn, control: cn ? (COST_CTRL_MAP[cn] || null) : null,
+        budget: Number(d.budget) || 0, actual: Number(d.actual) || 0, pending: Number(d.pending) || 0, balance: Number(d.balance) || 0 };
+    }
+    // 홈화면 표시 카드 <-> 저장용 문자열 ('부서코드|계정코드|통제')
+    function costViewsToIdents(set) {
+      const out = [];
+      set.forEach(k => { const [id, c] = k.split('|'); const a = costItems.find(x => x.id === id); if (a) out.push(costIdent(a) + '|' + c); });
+      return out;
+    }
+    function costViewsFromIdents(list) {
+      const want = new Set(Array.isArray(list) ? list : []);
+      const out = new Set();
+      costItems.forEach(a => COST_CONTROL_ORDER.forEach(c => { if (want.has(costIdent(a) + '|' + c)) out.add(a.id + '|' + c); }));
+      return out;
+    }
+    async function costBudgetLoad() {
+      costBudgetState = { status: 'loading', message: '' };
+      if (!supabaseClient) { costBudgetState = { status: 'error', message: 'Supabase가 설정되지 않았습니다.' }; return false; }
+      try {
+        const all = [];
+        for (let from = 0; from < 50000; from += 1000) {
+          const { data, error } = await supabaseClient.from(COST_BUDGET_TABLE).select('*').order('id').range(from, from + 999);
+          if (error) throw error;
+          all.push(...(data || []));
+          if (!data || data.length < 1000) break;
+        }
+        const rows = all.map(costDbToRow);
+        if (rows.length) { const b = costBuildItems(rows); costItems = b.items; costFiscalYear = b.year; costRows = rows.filter(r => r.y === b.year); }
+        else { costItems = []; costRows = []; costFiscalYear = null; }
+        const st = await supabaseClient.from(SETTINGS_TABLE).select('value').eq('key', 'cost_views').maybeSingle();
+        if (st.error) throw st.error;
+        costViews = costViewsFromIdents(st.data && st.data.value);
+        const cd = await supabaseClient.from(COST_CARD_TABLE).select('*').order('created_at');
+        if (cd.error) throw cd.error;
+        costCards = (cd.data || []).map(c => ({ id: c.id, name: c.name, last4: c.last4 }));
+        costBudgetState = { status: 'ok', message: '' };
+        return true;
+      } catch (e) {
+        console.error('비용관리 데이터 불러오기 오류:', e);
+        costBudgetState = { status: 'error', message: dbErrorMessage(e) };
+        return false;
+      }
+    }
     // 업로드 행 → 계정 목록 (부서코드 + 계정코드 기준) / 가장 최근 연도만 사용
     function costBuildItems(allRows) {
       const year = Math.max(...allRows.map(r => r.y));
@@ -7475,7 +7551,7 @@
       el.className = `mb-3 text-[12px] rounded-xl px-3 py-2 leading-relaxed ${ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`;
       el.innerHTML = html;
     }
-    function costApplyBudget() {
+    async function costApplyBudget() {
       const ta = document.getElementById('costBudgetTextarea');
       if (!ta.value.trim()) { showIosAutoToast('예산 데이터를 붙여넣어 주세요.'); return; }
       const { rows, errors } = costParseBudget(ta.value);
@@ -7483,23 +7559,30 @@
         costShowBudgetResult(false, `적용할 수 있는 행이 없습니다.${errors.length ? '<br>' + errors.slice(0, 5).map(svEsc).join('<br>') : ''}`);
         return;
       }
-      // TODO(Supabase): cost_budget 테이블 upsert
       const { year, items, skipped } = costBuildItems(rows);
-      const ident = a => a.deptCode + '|' + (a.code || a.name);
-      const prevViews = new Set([...costViews].map(k => { const [id, c] = k.split('|'); const a = costItems.find(x => x.id === id); return a ? ident(a) + '|' + c : null; }).filter(Boolean));
-      costRows = rows.filter(r => r.y === year);
-      costItems = items;
-      costFiscalYear = year;
-      costViews = new Set();
-      items.forEach(a => COST_CONTROL_ORDER.forEach(c => { if (prevViews.has(ident(a) + '|' + c)) costViews.add(a.id + '|' + c); }));
+      const yearRows = rows.filter(r => r.y === year);
+      // 기존 표시 카드는 (부서|계정코드|통제) 기준으로 유지
+      const prevIdents = new Set(costViewsToIdents(costViews));
+      const nextViews = new Set();
+      items.forEach(a => COST_CONTROL_ORDER.forEach(c => { if (prevIdents.has(costIdent(a) + '|' + c)) nextViews.add(a.id + '|' + c); }));
+      const nextIdents = [...nextViews].map(k => { const [id, c] = k.split('|'); return costIdent(items.find(x => x.id === id)) + '|' + c; });
+      showBusy('예산 저장 중...');
+      const res = await dbRun('예산 저장', async () => {
+        const { error } = await supabaseClient.rpc('replace_cost_budget', { p_rows: yearRows.map(costRowToDb) });   // 기존 예산을 지우고 새로 저장 (한 번에 처리)
+        if (error) throw error;
+        await settingsSave([{ key: 'cost_views', value: nextIdents }]);
+      });
+      hideBusy();
+      if (!res.ok) { costShowBudgetResult(false, 'Supabase 저장에 실패하여 예산이 적용되지 않았습니다. 알림 내용을 확인한 뒤 다시 시도해주세요.'); return; }
+      costRows = yearRows; costItems = items; costFiscalYear = year; costViews = nextViews;
       costState.overrides = {};
       ta.value = '';
       costUpdateBudgetStats();
       const extraParts = [];
       if (skipped) extraParts.push(`${year}년이 아닌 ${skipped}행은 제외했습니다.`);
       if (errors.length) extraParts.push(`<span class="font-semibold">오류로 제외된 ${errors.length}행</span><br>${errors.slice(0, 5).map(svEsc).join('<br>')}${errors.length > 5 ? '<br>…' : ''}`);
-      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 적용되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
-      showToastNotification('예산 적용 완료', `${items.length}개 계정이 적용되었습니다.`, 'success');
+      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 Supabase에 저장되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
+      showToastNotification('예산 적용 완료', `${items.length}개 계정이 저장되었습니다.`, 'success');
     }
     function costResetBudget() {
       const ta = document.getElementById('costBudgetTextarea');
@@ -7507,7 +7590,15 @@
         ta.value = ''; costUpdateBudgetStats(); document.getElementById('costBudgetResult').classList.add('hidden');
         return;
       }
-      showConfirmModal(() => {
+      showConfirmModal(async () => {
+        showBusy('초기화 중...');
+        const res = await dbRun('예산 초기화', async () => {
+          const { error } = await supabaseClient.rpc('replace_cost_budget', { p_rows: [] });
+          if (error) throw error;
+          await settingsSave([{ key: 'cost_views', value: [] }]);
+        });
+        hideBusy();
+        if (!res.ok) return;
         costRows = []; costItems = []; costViews = new Set(); costFiscalYear = null; costState.overrides = {};
         ta.value = ''; costUpdateBudgetStats();
         costShowBudgetResult(true, '업로드된 예산 데이터가 초기화되었습니다.');
@@ -7575,9 +7666,12 @@
       else targets.forEach(a => COST_CONTROL_ORDER.forEach(c => costDraftViews.delete(a.id + '|' + c)));
       costRenderPickList();
     }
-    function costSaveVisible() {
+    async function costSaveVisible() {
       if (costItems.length === 0) { showToastNotification('저장할 항목 없음', '먼저 예산 업로드를 진행해주세요.', 'warning'); return; }
-      // TODO(Supabase): 표시 계정/통제 설정 저장
+      showBusy('저장 중...');
+      const res = await dbRun('표시 설정 저장', async () => { await settingsSave([{ key: 'cost_views', value: costViewsToIdents(costDraftViews) }]); });
+      hideBusy();
+      if (!res.ok) return;
       costViews = new Set(costDraftViews);
       costState.overrides = {};
       costRenderPickList();
@@ -7616,7 +7710,7 @@
       costState.period = 'm' + (new Date().getMonth() + 1);   // 이번 달 자동 매칭 (변경 가능)
       costState.overrides = {};
       switchCostTab('home');
-      costReloadReceipts();
+      costReloadAll();
     }
 
     function showSpecialNotesView() {
@@ -8047,4 +8141,3 @@
   </script>
 </body>
 </html>
-</body></html>
