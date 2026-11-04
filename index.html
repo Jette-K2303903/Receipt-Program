@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -661,7 +660,7 @@
           <div class="text-[12.5px] text-gray-800 font-medium leading-relaxed min-w-0">
             <span class="font-bold block">배차 데이터 입력 필요 (엑셀 20개 열 [A-T])</span>
             <span class="inline-block text-[11.5px] font-semibold text-[#34C759] bg-white/80 px-2 py-0.5 rounded-md mt-1">주의! 제목 행은 있어도 자동 제외 · 필수: 배송일, 사업자코드</span>
-            <span class="block text-[11px] text-gray-600 font-normal mt-1.5 leading-relaxed break-keep">1.배송일 · 2.센터 · 3.센터명 · 4.사업자코드 · 5.사업장명 · 6.주소 · 7.매장 전화번호 · 8.차량번호 · 9.운전자명 · 10.기사 전화번호 · 11.경남경북구분 · 12.좌표X · 13.좌표Y · 14.열쇠유무 · 15.본코스 배송기사 · 16.연락처 · 17.메인센터 · 18.차량구분 · 19.문자템플릿 양식 · 20.상하차시간(분)</span>
+            <span class="block text-[11px] text-gray-600 font-normal mt-1.5 leading-relaxed break-keep">1.배송일 · 2.센터 · 3.센터명 · 4.사업자코드 · 5.사업장명 · 6.주소 · 7.매장 전화번호(여러 개면 / 또는 셀 안 줄바꿈 → 두 번째부터 연락처2) · 8.차량번호 · 9.운전자명 · 10.기사 전화번호 · 11.경남경북구분 · 12.좌표X · 13.좌표Y · 14.열쇠유무 · 15.본코스 배송기사 · 16.연락처 · 17.메인센터 · 18.차량구분 · 19.문자템플릿 양식 · 20.상하차시간(분)</span>
           </div>
         </div>
         <div class="flex-1 flex flex-col min-h-[240px] mb-3">
@@ -2866,7 +2865,7 @@
         const [full, thumb] = await Promise.all([incidentCompress(ph.dataUrl, 1600, 0.82), incidentCompress(ph.dataUrl, 360, 0.7)]);
         const opt = { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false };
         const r1 = await bucket.upload(path, full, opt);
-        if (r1.error) throw r1.error;
+        if (r1.error) { if (/bucket not found/i.test(r1.error.message || '')) throw new Error(`저장소(Bucket) '${bucketName}' 를 찾을 수 없습니다. SQL Editor에서 supabase_storage_buckets.sql 을 실행해주세요.`); throw r1.error; }
         uploadedPaths.push(path);
         const r2 = await bucket.upload(thumbPath, thumb, opt);
         if (r2.error) throw r2.error;
@@ -2892,7 +2891,16 @@
     function trackLoadFn(fn) { return function () { return trackLoad(fn.apply(this, arguments)); }; }
     function dbErrorMessage(e) {
       if (isNetworkError(e)) return 'Supabase에 연결할 수 없습니다. 네트워크 또는 접속 설정을 확인해주세요.';
-      return (e && e.message) || '알 수 없는 오류가 발생했습니다.';
+      const msg = (e && e.message) || '';
+      const code = e && e.code;
+      if (/bucket not found/i.test(msg)) return '사진 저장소(Bucket)를 찾을 수 없습니다. Supabase SQL Editor에서 supabase_storage_buckets.sql 을 실행하고, Storage에 incident-photos / expense-receipts 가 있는지 확인해주세요.';
+      if (code === '42501' || /row-level security|permission denied|not authorized|unauthorized/i.test(msg)) return '접근 권한이 없습니다. Supabase RLS 정책(SQL)이 적용되었는지 확인해주세요.';
+      if (code === '42P01' || /does not exist|could not find the table|schema cache/i.test(msg)) return 'Supabase에 필요한 테이블/컬럼이 없습니다. 최신 SQL(supabase_full_setup.sql 또는 변경분 SQL)을 실행했는지 확인해주세요.';
+      if (code === '23514') return '입력값이 DB 규칙에 맞지 않습니다. 코드는 영문/숫자만 가능합니다. (' + msg + ')';
+      if (code === '23502') return '필수 값이 비어 있습니다. (' + msg + ')';
+      if (code === '23505') return '이미 같은 데이터가 있습니다. (' + msg + ')';
+      if (code === '22P02' || code === '22007' || code === '22008') return '값의 형식이 올바르지 않습니다(날짜/숫자). (' + msg + ')';
+      return msg || '알 수 없는 오류가 발생했습니다.';
     }
     async function incidentRun(label, fn) {
       if (!supabaseClient) {
@@ -3239,7 +3247,7 @@
       renderUhCalendar();
     }
     // 엑셀 양식은 추후 디자인 예정 - 이 함수의 열 구성만 바꾸면 됩니다.
-    function uhBuildExcel(records, tag) {
+    function uhBuildExcelPlain(records, tag) {
       if (typeof XLSX === 'undefined') {
         showToastNotification('다운로드 불가', '엑셀 라이브러리를 불러오지 못했습니다.', 'warning');
         return false;
@@ -3267,6 +3275,68 @@
       closeUhDownloadModal();
       showModal('다운로드 완료', `'${fileName}' 파일이 정상 생성되어 다운로드되었습니다.`);
       return true;
+    }
+    // 영수증 다운로드와 동일: 첫 시트 목록 + 사진이 있는 내역마다 시트(사진 삽입) 생성
+    async function uhBuildExcel(records, tag) {
+      if (records.length === 0) { showToastNotification('다운로드할 내역 없음', '해당하는 업로드 내역이 없습니다.', 'info'); return false; }
+      const sorted = records.map((r, i) => ({ r, i }))
+        .sort((a, b) => (b.r.docDate || '').localeCompare(a.r.docDate || '') || a.i - b.i).map(x => x.r);
+      showBusy('엑셀 생성 중... (사진 포함)');
+      try {
+        await costLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+        const withPhotos = sorted.filter(r => r.photos && r.photos.length);
+        const names = costSheetNames(withPhotos.map(r => ({ vendor: `${r.storeName || ''}_${r.productName || ''}`, date: r.docDate || '0000-00-00' })));
+        const nameOf = new Map(withPhotos.map((r, i) => [r.id, names[i]]));
+        const imgs = new Map();
+        const jobs = [];
+        withPhotos.forEach(r => r.photos.forEach((ph, k) => jobs.push({ id: r.id, k, url: ph.dataUrl })));
+        for (let n = 0; n < jobs.length; n += 6) {
+          await Promise.all(jobs.slice(n, n + 6).map(async j => { if (!imgs.has(j.id)) imgs.set(j.id, []); imgs.get(j.id)[j.k] = await costFetchImage(j.url); }));
+        }
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('업로드 내역');
+        ws.columns = [12, 16, 12, 18, 14, 8, 12, 14, 10, 24, 18, 30, 36, 10, 12].map(w => ({ width: w }));
+        const head = ws.addRow(['등록일자', '매장명', '매장코드', '제품명', '제품코드', '수량', '단위', '사유', '작성자', '배차기사', '입고센터', '비고', '수정내역', '상태', '사진']);
+        head.font = { bold: true }; head.alignment = { horizontal: 'center' };
+        head.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E5EA' } }; });
+        sorted.forEach(r => {
+          const row = ws.addRow([r.docDate || '', r.storeName || '', r.storeCode || '', r.productName || '', r.productCode || '', r.productQuantity ?? '', r.unitDisplay || '', r.reason || '', r.author || '', r.driver || '',
+            r.inboundCenter || '', r.detailContent || '', (r.historyLogs || []).map(l => `[${l.time}] ${l.author} ${l.reason || ''}`).join('\n'), r.status === 'delete_requested' ? '삭제요청' : '정상', '']);
+          row.getCell(13).alignment = { wrapText: true, vertical: 'top' };
+          const nm = nameOf.get(r.id);
+          if (nm) { row.getCell(15).value = { text: `사진 ${r.photos.length}장`, hyperlink: `#'${nm.replace(/'/g, "''")}'!A1` }; row.getCell(15).font = { color: { argb: 'FF0563C1' }, underline: true }; }
+        });
+        withPhotos.forEach(r => {
+          const sh = wb.addWorksheet(nameOf.get(r.id));
+          sh.columns = [{ width: 14 }, { width: 34 }, { width: 14 }, { width: 14 }, { width: 14 }];
+          const info = [['등록일자', r.docDate || ''], ['매장명', r.storeName || ''], ['매장코드', r.storeCode || ''], ['제품명', r.productName || ''], ['제품코드', r.productCode || ''],
+            ['수량', `${r.productQuantity ?? ''} ${r.unitDisplay || ''}`.trim()], ['사유', r.reason || ''], ['작성자', r.author || ''], ['배차기사', r.driver || ''], ['입고센터', r.inboundCenter || ''], ['비고', r.detailContent || '']];
+          info.forEach(kv => { const row = sh.addRow(kv); row.getCell(1).font = { bold: true }; row.getCell(2).alignment = { horizontal: 'left', wrapText: true, vertical: 'top' }; });
+          sh.getCell('D1').value = { text: '← 목록으로', hyperlink: "#'업로드 내역'!A1" };
+          sh.getCell('D1').font = { color: { argb: 'FF0563C1' }, underline: true };
+          let top = info.length + 1;
+          (imgs.get(r.id) || []).forEach(im => {
+            const id = wb.addImage({ buffer: im.buf, extension: 'jpeg' });
+            const width = Math.min(520, im.w), height = Math.round(im.h * width / im.w);
+            sh.addImage(id, { tl: { col: 0, row: top }, ext: { width, height } });
+            top += Math.ceil(height / 20) + 2;
+          });
+        });
+        const buf = await wb.xlsx.writeBuffer();
+        const fileName = `업로드내역_${tag}.xlsx`;
+        const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        const aEl = document.createElement('a'); aEl.href = url; aEl.download = fileName; document.body.appendChild(aEl); aEl.click(); aEl.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        hideBusy();
+        closeUhDownloadModal();
+        showModal('다운로드 완료', `'${fileName}' 파일이 생성되었습니다. 사진이 있는 내역은 시트별로 사진이 들어 있습니다.`);
+        return true;
+      } catch (e) {
+        hideBusy();
+        console.error('엑셀(사진 포함) 생성 오류:', e);
+        showToastNotification('사진 포함 실패', (e && e.message ? e.message : '알 수 없는 오류') + ' 사진 없이 목록만 다운로드합니다.', 'warning');
+        return uhBuildExcelPlain(records, tag);
+      }
     }
     function downloadUhSelectedExcel() {
       if (!uhSelectedDate) return;
@@ -3575,7 +3645,8 @@
     function showModal(title, desc) {
       if (!iosModal || !modalTitle || !modalDesc || !modalBox) return;
       modalTitle.textContent = title;
-      modalDesc.textContent = desc;
+      // 줄바꿈/강조가 필요한 안내는 { html: '...' } 로 전달 (직접 입력값은 svEsc 로 이스케이프할 것)
+      if (desc && typeof desc === 'object' && 'html' in desc) modalDesc.innerHTML = desc.html; else modalDesc.textContent = desc;
       iosModal.classList.remove('pointer-events-none', 'opacity-0');
       iosModal.classList.add('opacity-100');
       modalBox.classList.remove('scale-95');
@@ -6092,7 +6163,7 @@
     // 업로드 양식 정의 (열 순서 = 엑셀에서 복사한 열 순서). k = DB 컬럼명, h = 엑셀 제목, t = 값 형식
     const UPLOAD_SPECS = {
       order: { label: '주문', table: 'order_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"client_code",h:"고객사코드",t:"code"},{k:"client_name",h:"고객사명",t:""},{k:"store_code",h:"거래처코드",t:"code",req:true},{k:"store_name",h:"거래처명",t:""},{k:"product_code",h:"제품코드",t:"code",req:true},{k:"product_name",h:"제품명",t:""},{k:"business_area",h:"사업영역",t:""},{k:"temperature",h:"온도",t:""},{k:"unit",h:"단위",t:""},{k:"item_designation",h:"품목지정",t:""},{k:"stock_type",h:"재고타입",t:""},{k:"order_qty",h:"주문수량",t:"num"},{k:"ship_qty",h:"출고수량",t:"num"}] },
-      dispatch: { label: '배차', table: 'dispatch_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"business_code",h:"사업자코드",t:"code",req:true},{k:"business_name",h:"사업장명",t:""},{k:"address",h:"주소",t:""},{k:"store_phone",h:"매장 전화번호",t:"phone"},{k:"vehicle_no",h:"차량번호",t:""},{k:"driver_name",h:"운전자명",t:""},{k:"driver_phone",h:"기사 전화번호",t:"phone"},{k:"region_type",h:"경남경북구분",t:""},{k:"coord_x",h:"좌표X",t:"num"},{k:"coord_y",h:"좌표Y",t:"num"},{k:"has_key",h:"열쇠유무",t:""},{k:"main_driver",h:"본코스 배송기사",t:""},{k:"main_driver_phone",h:"연락처",t:"phone"},{k:"main_center",h:"메인센터",t:""},{k:"vehicle_type",h:"차량구분",t:""},{k:"sms_template",h:"문자템플릿 양식",t:""},{k:"load_minutes",h:"상하차시간(분)",t:"int"}] }
+      dispatch: { label: '배차', table: 'dispatch_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"business_code",h:"사업자코드",t:"code",req:true},{k:"business_name",h:"사업장명",t:""},{k:"address",h:"주소",t:""},{k:"store_phone",h:"매장 전화번호",t:"phones"},{k:"vehicle_no",h:"차량번호",t:""},{k:"driver_name",h:"운전자명",t:""},{k:"driver_phone",h:"기사 전화번호",t:"phone"},{k:"region_type",h:"경남경북구분",t:""},{k:"coord_x",h:"좌표X",t:"num"},{k:"coord_y",h:"좌표Y",t:"num"},{k:"has_key",h:"열쇠유무",t:""},{k:"main_driver",h:"본코스 배송기사",t:""},{k:"main_driver_phone",h:"연락처",t:"phone"},{k:"main_center",h:"메인센터",t:""},{k:"vehicle_type",h:"차량구분",t:""},{k:"sms_template",h:"문자템플릿 양식",t:""},{k:"load_minutes",h:"상하차시간(분)",t:"int"}] }
     };
 
     // ---------- 업로드 데이터 검증 / 변환 ----------
@@ -6112,17 +6183,37 @@
       if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
       return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
+    // 엑셀에서 복사한 텍스트(TSV) 분석: 셀 안의 줄바꿈(ALT+ENTER)은 큰따옴표로 감싸져 있으므로 이를 한 칸으로 처리
+    function uploadParseTsv(text) {
+      const recs = [];
+      let row = [], cell = '', inQ = false, line = 1, recLine = 1;
+      const pushCell = () => { row.push(cell); cell = ''; };
+      const pushRow = () => { pushCell(); recs.push({ line: recLine, cells: row }); row = []; };
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQ) {
+          if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+          else { cell += ch; if (ch === '\n') line++; }
+        } else if (ch === '"' && cell === '') inQ = true;
+        else if (ch === '\t') pushCell();
+        else if (ch === '\r') { if (text[i + 1] !== '\n') { pushRow(); line++; recLine = line; } }
+        else if (ch === '\n') { pushRow(); line++; recLine = line; }
+        else cell += ch;
+      }
+      if (cell !== '' || row.length) pushRow();
+      return recs;
+    }
     function uploadNormalize(kind, rawText) {
       const spec = UPLOAD_SPECS[kind], n = spec.cols.length;
       const rows = [], errors = [];
       let header = false;
-      rawText.split(/\r\n|\r|\n/).forEach((line, idx) => {
-        if (!line.trim()) return;
-        const lineNo = idx + 1;
-        let cells = line.split('\t').map(c => c.trim());
+      uploadParseTsv(rawText).forEach(rec => {
+        if (rec.cells.every(c => !String(c).trim())) return;
+        const lineNo = rec.line;
+        let cells = rec.cells.map(c => String(c).trim());
         if (rows.length === 0 && !header && cells[0] === spec.cols[0].h) { header = true; return; }   // 제목 행 자동 제외
         if (cells.length > n) {
-          if (cells.slice(n).some(c => c !== '')) { errors.push(`${lineNo}행: 열이 ${cells.length}개입니다. ${spec.label} 양식은 ${n}개 열이어야 합니다.`); return; }
+          if (cells.slice(n).some(c => c !== '')) { errors.push({ row: lineNo, col: '', msg: `열이 ${cells.length}개입니다. ${spec.label} 양식은 ${n}개 열이어야 합니다.`, val: '' }); return; }
           cells = cells.slice(0, n);
         }
         while (cells.length < n) cells.push('');
@@ -6130,14 +6221,21 @@
         let bad = false;
         spec.cols.forEach((c, i) => {
           const v = cells[i];
-          const fail = msg => { errors.push(`${lineNo}행 [${c.h}] ${msg}: "${v}"`); bad = true; };
+          const fail = msg => { errors.push({ row: lineNo, col: c.h, msg, val: v }); bad = true; };
           if (v === '') {
             if (c.req) fail('값이 비어 있습니다');
-            obj[c.k] = null; return;
+            obj[c.k] = null; if (c.t === 'phones') obj[c.k + '2'] = null; return;
           }
           if (c.t === 'date') { const d = uploadParseDate(v); if (!d) fail('날짜 형식이 올바르지 않습니다'); obj[c.k] = d; }
           else if (c.t === 'code') { if (!UPLOAD_CODE_RE.test(v)) fail('코드는 영문/숫자만 가능합니다'); obj[c.k] = v; }
           else if (c.t === 'phone') { if (!UPLOAD_PHONE_RE.test(v)) fail('전화번호 형식이 올바르지 않습니다'); obj[c.k] = v; }
+          else if (c.t === 'phones') {
+            // 번호가 여러 개면 ( / 또는 셀 안 줄바꿈 ) 첫 번째는 연락처, 두 번째부터는 연락처2
+            const parts = v.split(/\s*(?:\/|\r\n|\r|\n)\s*/).map(x => x.trim()).filter(Boolean);
+            if (parts.some(x => !UPLOAD_PHONE_RE.test(x))) fail('전화번호 형식이 올바르지 않습니다 (여러 개는 / 또는 줄바꿈으로 구분)');
+            obj[c.k] = parts[0] || null;
+            obj[c.k + '2'] = parts.length > 1 ? parts.slice(1).join(' / ') : null;
+          }
           else if (c.t === 'num' || c.t === 'int') {
             const num = Number(v.replace(/,/g, ''));
             if (!isFinite(num) || (c.t === 'int' && !Number.isInteger(num))) fail(c.t === 'int' ? '정수만 가능합니다' : '숫자만 가능합니다');
@@ -6148,9 +6246,21 @@
       });
       return { rows, errors, header };
     }
+    // 입력 오류 안내: 어느 행/열이 왜 틀렸는지 한눈에 보이도록 정리 (값은 따로 표시)
     function uploadShowErrors(label, errors) {
-      const list = errors.slice(0, 8).map(e => `• ${svEsc(e)}`).join('<br>');
-      showModal('입력 오류', `${label} 데이터 ${errors.length}건을 확인해주세요.<br><span style="display:block;text-align:left;font-size:12px;margin-top:8px">${list}${errors.length > 8 ? '<br>…' : ''}</span>`);
+      const SHOW = 30;
+      const byCol = {};
+      errors.forEach(e => { const k = e.col || '열 개수'; byCol[k] = (byCol[k] || 0) + 1; });
+      const chips = Object.entries(byCol).map(([k, n]) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;border-radius:999px;background:#FFE9E7;color:#D70015;font-size:11px;font-weight:700">${svEsc(k)} ${n}건</span>`).join('');
+      const items = errors.slice(0, SHOW).map(e => `
+        <div style="padding:8px 0;border-top:1px solid #E5E5EA;text-align:left">
+          <div style="font-size:12px;font-weight:700;color:#111">${svEsc(String(e.row))}행${e.col ? ` <span style="color:#6B7280;font-weight:600">›</span> ${svEsc(e.col)}` : ''}</div>
+          <div style="font-size:12px;color:#D70015;margin-top:2px">${svEsc(e.msg)}</div>
+          ${e.val !== '' && e.val != null ? `<div style="margin-top:3px;font-size:11px;color:#6B7280">입력값 <span style="font-family:ui-monospace,monospace;background:#F2F2F7;padding:1px 6px;border-radius:6px;color:#111;word-break:break-all">${svEsc(String(e.val).replace(/\n/g, '↵'))}</span></div>` : ''}
+        </div>`).join('');
+      showModal('입력 오류', { html: `${svEsc(label)} 데이터에서 <b>${errors.length}건</b>의 오류를 찾았습니다.<br>수정한 뒤 다시 붙여넣어 주세요.
+        <div style="text-align:left;margin-top:8px">${chips}</div>
+        <div style="max-height:38vh;overflow-y:auto;margin-top:6px;-webkit-overflow-scrolling:touch">${items}${errors.length > SHOW ? `<div style="padding:8px 0;border-top:1px solid #E5E5EA;font-size:12px;color:#6B7280">… 외 ${errors.length - SHOW}건</div>` : ''}</div>` });
     }
 
     // ---------- Supabase 연결 상태 / 테스트 ----------
@@ -6179,7 +6289,7 @@
         results.push(error ? `✗ verify_login: ${error.message}` : '✓ verify_login 함수');
       } catch (e) { results.push(`✗ verify_login: ${(e && e.message) || '통신 오류'}`); }
       if (netFail) results.push('※ 네트워크 오류: 이 화면(캔버스)에서는 외부 접속이 막혀 있을 수 있습니다. 파일을 내려받아 로컬/호스팅 환경에서 확인하세요.');
-      showModal('연결 테스트 결과', `<span style="display:block;text-align:left;font-size:13px;line-height:1.7">${results.map(svEsc).join('<br>')}</span>`);
+      showModal('연결 테스트 결과', { html: `<span style="display:block;text-align:left;font-size:13px;line-height:1.7">${results.map(svEsc).join('<br>')}</span>` });
     }
 
     const UPLOAD_CHUNK_SIZE = 50;
@@ -6322,7 +6432,7 @@
         hideProgressModal();
         uploadInProgress = false;
         await sleep(300);
-        showModal('업로드 실패', `저장 중 오류가 발생했습니다. 입력한 내용은 그대로 유지됩니다. (${(err && err.message) || '알 수 없는 오류'})`);
+        showModal('업로드 실패', { html: `저장 중 오류가 발생했습니다. 입력한 내용은 그대로 유지됩니다.<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#FFE9E7;color:#D70015;font-size:12px;text-align:left;word-break:break-all">${svEsc(dbErrorMessage(err))}</div>` });
       }
     }
 
@@ -6383,7 +6493,7 @@
     const svRegexEsc = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     // 로그인 사용자가 수정 가능한 항목 (수정 후 '변경사항 일괄 저장'으로 저장)
-    const SV_EDIT_KEYS = ['driver', 'vehicleNo', 'address', 'departTime', 'driverPhone', 'storePhone', 'formatType'];
+    const SV_EDIT_KEYS = ['driver', 'vehicleNo', 'address', 'departTime', 'driverPhone', 'storePhone', 'storePhone2', 'formatType'];
     // 양식지정 선택지 = '미지정' + 문자 양식(템플릿)의 양식 구분명
     function svFormatOptions(extra) {
       const list = ['미지정', ...svTemplates.map(t => t.category)];
@@ -6446,6 +6556,7 @@
           departTime: '',
           driverPhone: r.driver_phone || '',
           storePhone: r.store_phone || '',
+          storePhone2: r.store_phone2 || '',
           formatType: svTemplates.some(t => t.category === r.sms_template) ? r.sms_template : '미지정',
           completed: false,
           // 화면에는 표시하지 않지만 보관하는 업로드 항목
@@ -6824,7 +6935,7 @@
       const qNoSpace = q.replace(/\s+/g, '');
       const rows = svRowsInCenter().filter(r => {
         if (!q) return true;
-        const hit = [r.center, r.driver, r.vehicleNo, r.storeCode, r.storeName, r.seq, r.address, r.departTime, r.driverPhone, r.storePhone, r.formatType]
+        const hit = [r.center, r.driver, r.vehicleNo, r.storeCode, r.storeName, r.seq, r.address, r.departTime, r.driverPhone, r.storePhone, r.storePhone2, r.formatType]
           .some(v => String(v ?? '').toLowerCase().includes(q));
         if (hit) return true;
         // 화면에 '수정 필요' 배지가 떠 있는 주소도 검색 대상 ('수정', '수정필요', '수정 필요' 모두 가능)
@@ -6842,8 +6953,8 @@
         const inp = (field, cls, ph, type = 'text') =>
           `<input type="${type}" data-f="${field}" value="${svEsc(r[field])}" placeholder="${ph}" oninput="svSetField('${r.id}','${field}',this.value)" onchange="svSetField('${r.id}','${field}',this.value)" class="inline-cell-input ${cls}">`;
         const phoneLine = (label, field) => canEdit
-          ? `<div class="flex items-center space-x-1"><span class="text-[10px] text-gray-400 w-6 flex-shrink-0">${label}</span>${inp(field, 'w-[118px] font-mono text-xs', label)}</div>`
-          : `<div class="flex items-center space-x-1"><span class="text-[10px] text-gray-400 w-6 flex-shrink-0">${label}</span>${r[field] ? `<a href="tel:${svEsc(r[field])}" class="font-mono text-[12px] font-semibold text-[#007AFF]">${svEsc(r[field])}</a>` : '<span class="text-gray-400">-</span>'}</div>`;
+          ? `<div class="flex items-center space-x-1"><span class="text-[10px] text-gray-400 w-10 flex-shrink-0">${label}</span>${inp(field, 'w-[118px] font-mono text-xs', label)}</div>`
+          : `<div class="flex items-center space-x-1"><span class="text-[10px] text-gray-400 w-10 flex-shrink-0">${label}</span>${r[field] ? `<a href="tel:${svEsc(r[field])}" class="font-mono text-[12px] font-semibold text-[#007AFF]">${svEsc(r[field])}</a>` : '<span class="text-gray-400">-</span>'}</div>`;
         return `
           <tr id="svRow_${r.id}" class="${svIsDirty(r) ? 'bg-amber-50/70' : ''} transition-colors align-middle">
             <td class="font-semibold text-gray-800">${txt(r.center)}</td>
@@ -6854,7 +6965,7 @@
             <td class="font-mono font-semibold text-gray-700">${r.seq ?? '-'}</td>
             <td class="text-left" title="${svEsc(r.address)}"><div class="flex flex-col items-start space-y-1">${canEdit ? inp('address', 'w-[220px] text-left' + (addrOk ? '' : ' req-error'), '주소') : `<span class="text-gray-600 ${addrOk ? '' : 'bg-yellow-100 px-1 rounded'}">${txt(r.address)}</span>`}<span id="svAddrBadge_${r.id}" class="${addrOk ? 'hidden' : 'inline-flex'} items-center px-1.5 py-0.5 rounded-md bg-yellow-200 text-red-700 text-[11px] font-bold">수정 필요</span></div></td>
             <td>${canEdit ? inp('departTime', 'w-[100px] font-mono', '', 'time') : `<span class="font-mono font-semibold text-gray-700">${txt(r.departTime)}</span>`}</td>
-            <td class="text-left"><div class="space-y-1">${phoneLine('기사', 'driverPhone')}${phoneLine('매장', 'storePhone')}</div></td>
+            <td class="text-left"><div class="space-y-1">${phoneLine('기사', 'driverPhone')}${phoneLine('매장', 'storePhone')}${(canEdit || r.storePhone2) ? phoneLine('연락처2', 'storePhone2') : ''}</div></td>
             <td>${canEdit
               ? `<select onchange="svSetField('${r.id}','formatType',this.value)" class="inline-cell-input w-[90px] font-semibold">${svFormatOptions(r.formatType).map(o => `<option value="${svEsc(o)}" ${o === r.formatType ? 'selected' : ''}>${svEsc(o)}</option>`).join('')}</select>`
               : `<span class="text-xs font-semibold text-gray-700">${txt(r.formatType)}</span>`}</td>
@@ -8448,4 +8559,3 @@
   </script>
 </body>
 </html>
-</body></html>
