@@ -2770,13 +2770,42 @@
     function incidentLoadImage(src) {
       return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('이미지를 읽을 수 없습니다.')); im.src = src; });
     }
-    async function incidentCompress(src, maxSide, quality) {
+    // 사진 디코딩: EXIF 회전 반영(createImageBitmap) → 실패 시 Image 요소로 대체
+    async function incidentDecodeImage(src, preferBitmap) {
+      if (preferBitmap && window.createImageBitmap) {
+        try {
+          const blob = await (await fetch(src)).blob();
+          const bm = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+          return { img: bm, w: bm.width, h: bm.height };
+        } catch (e) { /* 아래 Image 방식으로 대체 */ }
+      }
       const im = await incidentLoadImage(src);
-      const scale = Math.min(1, maxSide / Math.max(im.naturalWidth, im.naturalHeight));
-      const w = Math.max(1, Math.round(im.naturalWidth * scale)), h = Math.max(1, Math.round(im.naturalHeight * scale));
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(im, 0, 0, w, h);
-      return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('이미지 변환에 실패했습니다.')), 'image/jpeg', quality));
+      try { if (im.decode) await im.decode(); } catch (e) { /* 무시 */ }
+      return { img: im, w: im.naturalWidth, h: im.naturalHeight };
+    }
+    // 그려진 결과가 완전히 흰색(빈 이미지)인지 확인 - 흰 사진이 저장소에 올라가는 것을 막습니다.
+    function incidentLooksBlank(canvas) {
+      try {
+        const t = document.createElement('canvas'); t.width = t.height = 48;
+        const x = t.getContext('2d'); x.drawImage(canvas, 0, 0, 48, 48);
+        const d = x.getImageData(0, 0, 48, 48).data;
+        for (let i = 0; i < d.length; i += 4) if (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250) return false;
+        return true;
+      } catch (e) { return false; }
+    }
+    async function incidentCompress(src, maxSide, quality) {
+      for (const preferBitmap of [true, false]) {
+        const { img, w: nw, h: nh } = await incidentDecodeImage(src, preferBitmap);
+        if (!nw || !nh) continue;
+        const scale = Math.min(1, maxSide / Math.max(nw, nh));
+        const w = Math.max(1, Math.round(nw * scale)), h = Math.max(1, Math.round(nh * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+        if (img.close) try { img.close(); } catch (e) { /* 무시 */ }
+        if (incidentLooksBlank(c)) continue;   // 다른 방식으로 한 번 더 시도
+        return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('이미지 변환에 실패했습니다.')), 'image/jpeg', quality));
+      }
+      throw new Error('사진을 변환하지 못했습니다(빈 이미지). 다른 사진으로 다시 시도해주세요.');
     }
     async function incidentRemoveFiles(paths, bucketName = INCIDENT_BUCKET) {
       const list = (paths || []).filter(Boolean);
@@ -7277,7 +7306,7 @@
     function costDlOnAccount(v) { document.getElementById('costDlAccountBtn').disabled = !v; }
     // 열: A 거래일자 · B 거래처 · C 단가 · D 공급가액 · E 부가세 · F 금액 · G 비고(=거래처, 영수증 사진 하이퍼링크) · H 결제카드 · I 계정명
     // 영수증 사진이 2장 이상이면 J, K열에 사진2·사진3 링크를 추가합니다.
-    function costBuildExcel(list, fileTag) {
+    function costBuildExcelLinks(list, fileTag) {
       if (typeof XLSX === 'undefined') { showToastNotification('다운로드 불가', '엑셀 라이브러리를 불러오지 못했습니다.', 'warning'); return; }
       if (list.length === 0) { showToastNotification('다운로드할 내역 없음', '해당하는 정산 내역이 없습니다.', 'info'); return; }
       const sorted = list.map((r, i) => ({ r, i })).sort((a, b) => a.r.date.localeCompare(b.r.date) || a.i - b.i).map(x => x.r);
@@ -7306,6 +7335,100 @@
       XLSX.writeFile(wb, fileName);
       closeCostDlModal();
       showModal('다운로드 완료', `'${fileName}' 파일이 정상 생성되어 다운로드되었습니다.`);
+    }
+    // ===== 영수증별 시트에 사진이 들어간 엑셀 (ExcelJS) =====
+    function costLoadScript(src) {
+      return new Promise((res, rej) => {
+        if (window.ExcelJS) return res();
+        const el = document.createElement('script');
+        el.src = src; el.onload = () => res(); el.onerror = () => rej(new Error('엑셀 라이브러리를 불러오지 못했습니다.'));
+        document.head.appendChild(el);
+      });
+    }
+    async function costFetchImage(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('영수증 사진을 불러오지 못했습니다. (' + r.status + ')');
+      const buf = await r.arrayBuffer();
+      let w = 0, h = 0;
+      try { const bm = await createImageBitmap(new Blob([buf])); w = bm.width; h = bm.height; if (bm.close) bm.close(); } catch (e) { w = 800; h = 1100; }
+      return { buf, w, h };
+    }
+    function costSheetNames(sorted) {
+      const used = new Set(['비용 정산']);
+      return sorted.map(r => {
+        const clean = t => String(t).replace(/[\\\/?*\[\]:]/g, '').trim();
+        let base = clean(r.vendor).slice(0, 24) || '영수증';
+        let name = base.slice(0, 31);
+        if (used.has(name.toLowerCase())) name = (base + '_' + r.date.slice(5).replace('-', '')).slice(0, 31);
+        let n = 2;
+        while (used.has(name.toLowerCase())) name = (base.slice(0, 27) + '_' + n++).slice(0, 31);
+        used.add(name.toLowerCase());
+        return name;
+      });
+    }
+    async function costBuildExcel(list, fileTag) {
+      if (list.length === 0) { showToastNotification('다운로드할 내역 없음', '해당하는 정산 내역이 없습니다.', 'info'); return; }
+      const sorted = list.map((r, i) => ({ r, i })).sort((a, b) => a.r.date.localeCompare(b.r.date) || a.i - b.i).map(x => x.r);
+      showBusy('엑셀 생성 중... (영수증 사진 포함)');
+      try {
+        await costLoadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+        const names = costSheetNames(sorted);
+        // 사진 내려받기 (동시에 6장씩)
+        const imgs = sorted.map(() => []);
+        const jobs = [];
+        sorted.forEach((r, i) => r.photos.forEach((ph, k) => jobs.push({ i, k, url: ph.dataUrl })));
+        for (let n = 0; n < jobs.length; n += 6) {
+          await Promise.all(jobs.slice(n, n + 6).map(async j => { imgs[j.i][j.k] = await costFetchImage(j.url); }));
+        }
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('비용 정산');
+        ws.columns = [12, 22, 12, 12, 10, 12, 22, 24, 16].map(w => ({ width: w }));
+        const head = ws.addRow(['거래일자', '거래처', '단가', '공급가액', '부가세', '금액', '비고', '결제카드', '계정명']);
+        head.font = { bold: true }; head.alignment = { horizontal: 'center' };
+        head.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5E5EA' } }; });
+        sorted.forEach((r, idx) => {
+          const a = costRcAmounts(r);
+          const row = ws.addRow([r.date, r.vendor, a.supply, a.supply, a.vat, r.total, '', r.cardLabel, r.accountName]);
+          ['C', 'D', 'E', 'F'].forEach(col => { row.getCell(col).numFmt = '#,##0'; });
+          // 비고 = 거래처명. 누르면 해당 영수증 시트(사진)로 이동
+          row.getCell('G').value = { text: r.vendor, hyperlink: `#'${names[idx].replace(/'/g, "''")}'!A1` };
+          row.getCell('G').font = { color: { argb: 'FF0563C1' }, underline: true };
+        });
+        sorted.forEach((r, idx) => {
+          const a = costRcAmounts(r);
+          const sh = wb.addWorksheet(names[idx]);
+          sh.columns = [{ width: 14 }, { width: 30 }, { width: 14 }, { width: 14 }, { width: 14 }];
+          const info = [['거래일자', r.date], ['거래처', r.vendor], ['공급가액', a.supply], ['부가세', a.vat], ['금액', r.total], ['결제카드', r.cardLabel], ['계정명', r.accountName]];
+          info.forEach((kv, n) => {
+            const row = sh.addRow(kv);
+            row.getCell(1).font = { bold: true };
+            if (n >= 2 && n <= 4) row.getCell(2).numFmt = '#,##0';
+            row.getCell(2).alignment = { horizontal: 'left' };
+          });
+          sh.getCell('D1').value = { text: '← 목록으로', hyperlink: "#'비용 정산'!A1" };
+          sh.getCell('D1').font = { color: { argb: 'FF0563C1' }, underline: true };
+          let top = info.length + 1;   // 0부터 시작하는 행 위치
+          imgs[idx].forEach(im => {
+            const id = wb.addImage({ buffer: im.buf, extension: 'jpeg' });
+            const width = Math.min(520, im.w), height = Math.round(im.h * width / im.w);
+            sh.addImage(id, { tl: { col: 0, row: top }, ext: { width, height } });
+            top += Math.ceil(height / 20) + 2;   // 기본 행 높이 약 20px
+          });
+        });
+        const buf = await wb.xlsx.writeBuffer();
+        const fileName = `비용정산_${fileTag}.xlsx`;
+        const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+        const aEl = document.createElement('a'); aEl.href = url; aEl.download = fileName; document.body.appendChild(aEl); aEl.click(); aEl.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        hideBusy();
+        closeCostDlModal();
+        showModal('다운로드 완료', `'${fileName}' 파일이 생성되었습니다. 영수증마다 시트가 있고 사진이 들어 있습니다.`);
+      } catch (e) {
+        hideBusy();
+        console.error('엑셀(사진 포함) 생성 오류:', e);
+        showToastNotification('사진 포함 실패', (e && e.message ? e.message : '알 수 없는 오류') + ' 사진 링크 방식으로 다운로드합니다.', 'warning');
+        costBuildExcelLinks(list, fileTag);
+      }
     }
     function costDownloadDate() { if (costDlDate) costBuildExcel(costReceipts.filter(r => r.date === costDlDate), costDlDate.replace(/-/g, '')); }
     function costDownloadAccount() {
