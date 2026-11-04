@@ -1297,8 +1297,8 @@
       </div>
 
       <!-- 연락처 테이블 컨테이너 -->
-      <div class="flex-1 bg-white rounded-[22px] border border-gray-200/80 ios-card-shadow overflow-hidden flex flex-col min-h-0">
-        <div class="ios-horizontal-scroll flex-1">
+      <div class="flex-none bg-white rounded-[22px] border border-gray-200/80 ios-card-shadow overflow-hidden mb-6">
+        <div class="ios-horizontal-scroll" style="overflow-y:visible">
           <table class="w-full pallet-table min-w-[360px]">
             <thead>
               <tr id="contactTableHeaderRow">
@@ -3304,7 +3304,26 @@
       return true;
     }
     // 영수증 다운로드와 동일: 첫 시트 목록 + 사진이 있는 내역마다 시트(사진 삽입) 생성
+    // 다운로드 시 order_data 에서 고객사/온도/품목지정/재고타입을 직접 조회해 채움 (이전에 저장된 내역 포함)
+    async function uhEnrichRecords(records) {
+      const cache = new Map();
+      for (const r of records) {
+        if (!r.storeCode || !r.productCode) continue;
+        const key = `${r.storeCode}|${r.productCode}|${r.docDate}`;
+        if (!cache.has(key)) cache.set(key, fetchOrderInfo(r.storeCode, r.productCode, r.docDate));
+      }
+      const out = [];
+      for (const r of records) {
+        const info = (await cache.get(`${r.storeCode}|${r.productCode}|${r.docDate}`)) || {};
+        out.push({ ...r,
+          deliveryDate: info.deliveryDate || r.deliveryDate, clientCode: info.clientCode || r.clientCode, clientName: info.clientName || r.clientName,
+          temperature: info.temperature || r.temperature, itemDesignation: info.itemDesignation || r.itemDesignation, stockType: info.stockType || r.stockType,
+          orderQty: info.orderQty != null ? info.orderQty : r.orderQty });
+      }
+      return out;
+    }
     async function uhBuildExcel(records, tag) {
+      if (records.length) { showBusy('발주 정보 조회 중...'); try { records = await uhEnrichRecords(records); } catch (e) { console.warn(e); } hideBusy(); }
       if (records.length === 0) { showToastNotification('다운로드할 내역 없음', '해당하는 업로드 내역이 없습니다.', 'info'); return false; }
       const sorted = records.map((r, i) => ({ r, i }))
         .sort((a, b) => (b.r.docDate || '').localeCompare(a.r.docDate || '') || a.i - b.i).map(x => x.r);
