@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -357,6 +358,12 @@
     input:focus, textarea:focus { caret-color: #007AFF; }
     .segment-tab { transition: all .3s cubic-bezier(.32,.72,0,1); }
 
+    /* Material 스타일 원형 로딩 */
+    .md-spinner { width: 20px; height: 20px; animation: md-rot 1.4s linear infinite; flex-shrink: 0; }
+    .md-spinner circle { stroke: #007AFF; fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1, 150; stroke-dashoffset: 0; animation: md-dash 1.4s ease-in-out infinite; }
+    @keyframes md-rot { 100% { transform: rotate(360deg); } }
+    @keyframes md-dash { 0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; } 50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; } 100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; } }
+
     /* [글자 넘침/줄바꿈 방지: 모바일↔PC] */
     #appShell { word-break: keep-all; overflow-wrap: anywhere; }
     button span, a[onclick] span, label, h2, h3, h4, th, #headerPageTitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -383,6 +390,9 @@
         box-shadow: none !important;
         border-right: 1px solid #E5E5EA;
       }
+      /* 상단 높이 통일: 메인 헤더와 메뉴 상단(전체 메뉴) 영역의 높이/구분선을 같은 위치에 맞춤 */
+      body.office-mode #appShell > header { height: 64px; box-sizing: border-box; padding-top: .75rem !important; padding-bottom: .75rem !important; }
+      body.office-mode #menuDrawer > div:first-child > div:first-child { height: 64px; box-sizing: border-box; padding-top: 0 !important; padding-bottom: 0 !important; display: flex; align-items: center; }
       body.office-mode #drawerOverlay,
       body.office-mode #menuOpenBtn,
       body.office-mode #menuCloseBtn { display: none !important; }
@@ -390,6 +400,12 @@
   </style>
 </head>
 <body class="flex justify-center items-center">
+
+  <!-- [데이터 불러오는 중 표시] 우측 상단 -->
+  <div id="dataLoadingIndicator" class="hidden fixed z-[60] items-center space-x-2 pl-2.5 pr-3.5 py-1.5 rounded-full bg-white/95 backdrop-blur border border-gray-200 shadow-lg pointer-events-none" style="top: calc(env(safe-area-inset-top, 0px) + 68px); right: calc(.75rem + env(safe-area-inset-right, 0px));" role="status" aria-live="polite">
+    <svg class="md-spinner" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20"></circle></svg>
+    <span class="text-[12px] font-semibold text-gray-700 whitespace-nowrap">데이터 불러오는 중...</span>
+  </div>
 
   <!-- 모바일 및 PC 반응형 메인 쉘 -->
   <div id="appShell" class="w-full max-w-md h-full bg-[#F2F2F7] flex flex-col relative overflow-hidden shadow-2xl">
@@ -1101,7 +1117,11 @@
             <div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0 !bg-gray-50 border border-dashed border-gray-200"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">공급가액</span><span id="costRcSupply" class="flex-1 text-right text-[14px] font-bold font-mono text-gray-800">0</span><span class="text-[13px] text-gray-500">원</span><span class="text-[10px] font-bold text-[#34C759] bg-emerald-50 px-1.5 py-0.5 rounded-md flex-shrink-0">자동</span></div>
             <div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0 !bg-gray-50 border border-dashed border-gray-200"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">부가세</span><span id="costRcVat" class="flex-1 text-right text-[14px] font-bold font-mono text-gray-800">0</span><span class="text-[13px] text-gray-500">원</span><span class="text-[10px] font-bold text-[#34C759] bg-emerald-50 px-1.5 py-0.5 rounded-md flex-shrink-0">자동</span></div>
             <div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">결제카드</span><select id="costRcCard" class="flex-1 text-[14px] font-medium bg-transparent min-w-0"></select></div>
-            <div class="md:col-span-2"><div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">비용 계정</span><select id="costRcAccount" class="flex-1 text-[14px] font-medium bg-transparent min-w-0"></select></div></div>
+            <div class="md:col-span-2 relative"><div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">비용 계정</span>
+              <input type="hidden" id="costRcAccount" value="">
+              <input type="text" id="costRcAccountSearch" placeholder="계정명·코드 검색" autocomplete="off" oninput="costRcAccInput(this.value)" onfocus="costRcAccRender()" onblur="setTimeout(costRcAccHide, 160)" onkeydown="costRcAccKey(event)" class="flex-1 text-[14px] font-medium bg-transparent min-w-0 outline-none">
+              <button type="button" id="costRcAccClear" onmousedown="event.preventDefault();costRcAccClear()" aria-label="계정 선택 지우기" class="hidden w-5 h-5 rounded-full bg-gray-300 text-white items-center justify-center text-[10px] flex-shrink-0"><i class="ph-bold ph-x"></i></button></div>
+              <div id="costRcAccBox" class="hidden absolute left-0 right-0 top-full mt-1.5 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-56 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div></div>
             <div class="md:col-span-2"><div class="bg-gray-100 rounded-xl px-3 py-2.5 flex items-center space-x-2 min-w-0"><span class="text-[13px] text-gray-500 flex-shrink-0 w-[72px]">비고</span><input type="text" id="costRcMemo" maxlength="100" placeholder="비고 (선택)" autocomplete="off" class="flex-1 text-[14px] font-medium"></div></div>
           </div>
           <p class="text-[11px] text-gray-400 mt-2 px-1">공급가액·부가세는 합계금액의 10% 부가세 기준으로 자동 계산됩니다. (공급가액 = 합계 ÷ 1.1)</p>
@@ -1987,6 +2007,30 @@
                 </div>
                 <p class="text-[11px] text-gray-400 mt-1">구간차량 관리 &gt; 실시간 대시보드 설계 후 적용됩니다. (기본 14일, 설정값은 미리 저장)</p>
               </div>
+              <div class="border-t border-gray-200 pt-4">
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">비용관리 영수증 유지기간</label>
+                <div class="flex items-center space-x-3">
+                  <input type="number" id="retentionReceiptInput" min="1" max="365" value="90" class="w-24 px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-base font-bold text-center text-[#007AFF]">
+                  <span class="text-sm font-semibold text-gray-700">일 후 자동 삭제</span>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1">영수증 내역과 사진이 삭제되며, 해당 금액은 계정 사용금액에서도 빠집니다. (기본 90일)</p>
+              </div>
+              <div class="border-t border-gray-200 pt-4">
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">로그인 유지 시간 (새로고침해도 유지)</label>
+                <div class="space-y-2">
+                  <div class="flex items-center space-x-3">
+                    <span class="w-24 text-[13px] font-semibold text-gray-600">사무실</span>
+                    <input type="number" id="loginKeepOfficeInput" min="5" max="1440" value="90" class="w-24 px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-base font-bold text-center text-[#007AFF]">
+                    <span class="text-sm font-semibold text-gray-700">분</span>
+                  </div>
+                  <div class="flex items-center space-x-3">
+                    <span class="w-24 text-[13px] font-semibold text-gray-600">현장 관리자</span>
+                    <input type="number" id="loginKeepFieldInput" min="5" max="1440" value="90" class="w-24 px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-base font-bold text-center text-[#007AFF]">
+                    <span class="text-sm font-semibold text-gray-700">분</span>
+                  </div>
+                </div>
+                <p class="text-[11px] text-gray-400 mt-1">마지막 사용 후 이 시간 안에 새로고침하면 로그인이 유지됩니다. (기본 90분, 5~1440분)</p>
+              </div>
             </div>
           </div>
         </div>
@@ -2831,6 +2875,21 @@
       }));
     }
     // 공통 실행기: Supabase 에만 저장합니다. (연결 실패 시 화면에만 임시 저장하지 않고 실패로 처리)
+    // 우측 상단 '데이터 불러오는 중...' 표시 (여러 요청이 겹쳐도 모두 끝날 때까지 유지)
+    let dataLoadCount = 0;
+    function dataLoadStart() {
+      dataLoadCount++;
+      const el = document.getElementById('dataLoadingIndicator');
+      if (el) { el.classList.remove('hidden'); el.classList.add('flex'); }
+    }
+    function dataLoadEnd() {
+      dataLoadCount = Math.max(0, dataLoadCount - 1);
+      if (dataLoadCount > 0) return;
+      const el = document.getElementById('dataLoadingIndicator');
+      if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+    }
+    function trackLoad(promise) { dataLoadStart(); return Promise.resolve(promise).finally(dataLoadEnd); }
+    function trackLoadFn(fn) { return function () { return trackLoad(fn.apply(this, arguments)); }; }
     function dbErrorMessage(e) {
       if (isNetworkError(e)) return 'Supabase에 연결할 수 없습니다. 네트워크 또는 접속 설정을 확인해주세요.';
       return (e && e.message) || '알 수 없는 오류가 발생했습니다.';
@@ -3797,6 +3856,7 @@
       if (!isLoggedIn) return;
       officeDisplayMode = (officeDisplayMode === 'pc') ? 'mobile' : 'pc';
       applyRoleState();
+      sessionSave();
       resetMenuIdleTimer();
       showToastNotification('화면 모드 전환', officeDisplayMode === 'pc' ? 'PC 최적화 화면으로 전환되었습니다.' : '모바일 최적화 화면으로 전환되었습니다.', 'info');
     }
@@ -3846,6 +3906,7 @@
         currentRole = targetLoginRole;
         isLoggedIn = true;
         sessionLastActivity = Date.now();
+        sessionRestoredAge = null;
         closeLoginModal();
         if (targetLoginRole === 'office') runRetentionPurge();
 
@@ -3873,6 +3934,7 @@
         currentRole = 'field';
         officeDisplayMode = 'mobile';
         applyRoleState();
+        sessionSave();
         showModal('로그아웃 완료', '정상적으로 로그아웃되었습니다.');
       }, '로그아웃 확인', '로그아웃하시겠습니까?');
     }
@@ -3895,8 +3957,50 @@
       currentRole = 'field';
       officeDisplayMode = 'mobile';
       applyRoleState();
+      sessionSave();
       showModal('자동 로그아웃', `${hours}시간 동안 활동이 없어 자동으로 로그아웃되었습니다. 계속 사용하시려면 다시 로그인해주세요.`);
     }
+    // ===== 로그인 유지 (새로고침해도 일정 시간 동안 로그인 상태 유지) =====
+    const SESSION_STORE_KEY = 'logi_session_v1';
+    let sessionRestoredAge = null;   // 새로고침으로 복원된 경우, 마지막 사용 후 경과 시간(ms)
+    function sessionKeepMs(role) {
+      let o = retentionSettings.loginKeepOfficeMin, f = retentionSettings.loginKeepFieldMin;
+      try { const c = JSON.parse(localStorage.getItem('logi_keep_cache') || 'null'); if (c && !settingsLoadedOnce) { o = c.office || o; f = c.field || f; } } catch (e) { /* 무시 */ }
+      return (role === 'office' ? o : f) * 60000;
+    }
+    let settingsLoadedOnce = false;
+    function sessionSave() {
+      try {
+        if (!isLoggedIn) { localStorage.removeItem(SESSION_STORE_KEY); return; }
+        localStorage.setItem(SESSION_STORE_KEY, JSON.stringify({ role: currentRole, mode: officeDisplayMode, last: sessionLastActivity }));
+      } catch (e) { /* 저장 불가 환경에서는 유지 기능만 동작하지 않음 */ }
+    }
+    function sessionRestore() {
+      try {
+        const j = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null');
+        if (!j || (j.role !== 'office' && j.role !== 'field') || !j.last) return;
+        const age = Date.now() - j.last;
+        if (age < 0 || age > sessionKeepMs(j.role)) { localStorage.removeItem(SESSION_STORE_KEY); return; }
+        isLoggedIn = true; currentRole = j.role;
+        officeDisplayMode = (j.role === 'office' && j.mode === 'pc') ? 'pc' : 'mobile';
+        sessionLastActivity = j.last; sessionRestoredAge = age;
+        applyRoleState();
+      } catch (e) { /* 무시 */ }
+    }
+    // 설정(로그인 유지 시간)을 불러온 뒤, 복원된 로그인이 설정 시간을 넘겼다면 로그아웃
+    function sessionRevalidateAfterSettings() {
+      settingsLoadedOnce = true;
+      if (!isLoggedIn || sessionRestoredAge === null) return;
+      if (sessionRestoredAge > sessionKeepMs(currentRole)) {
+        isLoggedIn = false; currentRole = 'field'; officeDisplayMode = 'mobile';
+        applyRoleState(); sessionSave();
+        showModal('로그인 시간 만료', '로그인 유지 시간이 지나 로그아웃되었습니다. 다시 로그인해주세요.');
+      }
+      sessionRestoredAge = null;
+    }
+    setInterval(sessionSave, 15 * 1000);
+    window.addEventListener('pagehide', sessionSave);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) sessionSave(); });
     setInterval(checkSessionIdle, 30 * 1000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSessionIdle(); });
 
@@ -5453,7 +5557,7 @@
     }
 
     let currentDataManageTab = 'menu';
-    let retentionSettings = { uploadHistoryDays: 14, dashboardDays: 14 };
+    let retentionSettings = { uploadHistoryDays: 14, dashboardDays: 14, receiptDays: 90, loginKeepOfficeMin: 90, loginKeepFieldMin: 90 };
 
     const dataManagementModal = document.getElementById('dataManagementModal');
     const dataManagementModalBox = document.getElementById('dataManagementModalBox');
@@ -5468,6 +5572,9 @@
     const newReasonInput = document.getElementById('newReasonInput');
     const retentionUploadInput = document.getElementById('retentionUploadInput');
     const retentionDashboardInput = document.getElementById('retentionDashboardInput');
+    const retentionReceiptInput = document.getElementById('retentionReceiptInput');
+    const loginKeepOfficeInput = document.getElementById('loginKeepOfficeInput');
+    const loginKeepFieldInput = document.getElementById('loginKeepFieldInput');
 
     function openDataManagementModal() {
       if (!dataManagementModal) return;
@@ -5476,6 +5583,9 @@
       renderReasonTags();
       if (retentionUploadInput) retentionUploadInput.value = retentionSettings.uploadHistoryDays;
       if (retentionDashboardInput) retentionDashboardInput.value = retentionSettings.dashboardDays;
+      if (retentionReceiptInput) retentionReceiptInput.value = retentionSettings.receiptDays;
+      if (loginKeepOfficeInput) loginKeepOfficeInput.value = retentionSettings.loginKeepOfficeMin;
+      if (loginKeepFieldInput) loginKeepFieldInput.value = retentionSettings.loginKeepFieldMin;
 
       dataManagementModal.classList.remove('pointer-events-none', 'opacity-0');
       dataManagementModal.classList.add('opacity-100');
@@ -5601,7 +5711,13 @@
         if (m.has('retention')) {
           const v = m.get('retention') || {};
           const clamp = n => Math.min(365, Math.max(1, parseInt(n, 10) || 14));
-          retentionSettings = { uploadHistoryDays: clamp(v.upload_history_days), dashboardDays: clamp(v.realtime_dashboard_days) };
+          const keep = (n, d) => Math.min(1440, Math.max(5, parseInt(n, 10) || d));
+          retentionSettings = {
+            uploadHistoryDays: clamp(v.upload_history_days), dashboardDays: clamp(v.realtime_dashboard_days),
+            receiptDays: Math.min(365, Math.max(1, parseInt(v.receipt_days, 10) || 90)),
+            loginKeepOfficeMin: keep(v.login_keep_office_min, 90), loginKeepFieldMin: keep(v.login_keep_field_min, 90)
+          };
+          try { localStorage.setItem('logi_keep_cache', JSON.stringify({ office: retentionSettings.loginKeepOfficeMin, field: retentionSettings.loginKeepFieldMin })); } catch (e) { /* 무시 */ }
         }
         if (m.has('navigation_menus')) applyNavMenuSetting(m.get('navigation_menus'));
         if (m.has('managed_reasons') && Array.isArray(m.get('managed_reasons'))) managedReasons = m.get('managed_reasons').map(String);
@@ -5622,14 +5738,23 @@
     // 유지기간이 지난 업로드 내역(및 사진)을 정리합니다. 사무실 로그인 시 실행.
     async function runRetentionPurge() {
       if (!supabaseClient) return;
+      const day = 86400000;
+      const sweep = async (table, bucket, days) => {
+        const cutoff = new Date(Date.now() - days * day).toISOString();
+        for (let round = 0; round < 10; round++) {          // 한 번에 200건씩, 최대 2,000건
+          const { data, error } = await supabaseClient.from(table).select('id,photos').lt('created_at', cutoff).limit(200);
+          if (error || !data || !data.length) return;
+          const paths = [];
+          data.forEach(r => (Array.isArray(r.photos) ? r.photos : []).forEach(ph => { if (ph.path) paths.push(ph.path); if (ph.thumb_path) paths.push(ph.thumb_path); }));
+          await incidentRemoveFiles(paths, bucket);
+          const del = await supabaseClient.from(table).delete().in('id', data.map(r => r.id));
+          if (del.error) return;
+          if (data.length < 200) return;
+        }
+      };
       try {
-        const cutoff = new Date(Date.now() - retentionSettings.uploadHistoryDays * 86400000).toISOString();
-        const { data, error } = await supabaseClient.from(INCIDENT_TABLE).select('id,photos').lt('created_at', cutoff).limit(200);
-        if (error || !data || !data.length) return;
-        const paths = [];
-        data.forEach(r => (Array.isArray(r.photos) ? r.photos : []).forEach(ph => { if (ph.path) paths.push(ph.path); if (ph.thumb_path) paths.push(ph.thumb_path); }));
-        await incidentRemoveFiles(paths);
-        await supabaseClient.from(INCIDENT_TABLE).delete().in('id', data.map(r => r.id));
+        await sweep(INCIDENT_TABLE, INCIDENT_BUCKET, retentionSettings.uploadHistoryDays);
+        await sweep(COST_RECEIPT_TABLE, COST_RECEIPT_BUCKET, retentionSettings.receiptDays);
       } catch (e) { console.warn('유지기간 정리 실패(무시):', e); }
     }
 
@@ -5641,17 +5766,26 @@
       };
       const up = clamp(retentionUploadInput, '업로드 내역'); if (up === null) return;
       const db = clamp(retentionDashboardInput, '실시간 대시보드'); if (db === null) return;
+      const rc = clamp(retentionReceiptInput, '영수증'); if (rc === null) return;
+      const keepVal = (el, label) => {
+        const n = parseInt(el && el.value, 10);
+        if (!Number.isInteger(n) || n < 5 || n > 1440) { showIosAutoToast(label + ' 로그인 유지 시간은 5~1440분으로 입력해주세요.'); return null; }
+        return n;
+      };
+      const koff = keepVal(loginKeepOfficeInput, '사무실'); if (koff === null) return;
+      const kfld = keepVal(loginKeepFieldInput, '현장 관리자'); if (kfld === null) return;
       showBusy('저장 중...');
       const res = await dbRun('설정 저장', async () => {
         await settingsSave([
-          { key: 'retention', value: { upload_history_days: up, realtime_dashboard_days: db } },
+          { key: 'retention', value: { upload_history_days: up, realtime_dashboard_days: db, receipt_days: rc, login_keep_office_min: koff, login_keep_field_min: kfld } },
           { key: 'navigation_menus', value: navigationMenus.map(m => ({ id: m.id, visible: m.visible })) },
           { key: 'managed_reasons', value: managedReasons }
         ]);
       });
       hideBusy();
       if (!res.ok) return;
-      retentionSettings = { uploadHistoryDays: up, dashboardDays: db };
+      retentionSettings = { uploadHistoryDays: up, dashboardDays: db, receiptDays: rc, loginKeepOfficeMin: koff, loginKeepFieldMin: kfld };
+      try { localStorage.setItem('logi_keep_cache', JSON.stringify({ office: koff, field: kfld })); } catch (e) { /* 무시 */ }
       renderDynamicNavMenus();
       closeDataManagementModal();
       showModal('설정 저장 완료', '메뉴 순서, 사유 목록 및 유지기간이 Supabase에 저장되었습니다.');
@@ -5853,7 +5987,12 @@
     }
 
     renderDynamicNavMenus();
-    settingsLoadAll().finally(() => setTimeout(checkAndShowActiveNotice, 300));
+    sessionRestore();   // 새로고침 전 로그인 상태 복원
+    trackLoad(settingsLoadAll()).finally(() => {
+      sessionRevalidateAfterSettings();
+      if (isLoggedIn && currentRole === 'office') runRetentionPurge();   // 새로고침으로 복원된 사무실 로그인도 유지기간 정리
+      setTimeout(checkAndShowActiveNotice, 300);
+    });
 
     const orderUploadModal = document.getElementById('orderUploadModal');
     const orderUploadModalBox = document.getElementById('orderUploadModalBox');
@@ -6981,16 +7120,56 @@
     }
     // 결제카드 / 비용 계정 선택지 (비용 계정은 예산 업로드 순서 그대로)
     function costRcRefreshOptions() {
-      const cardSel = document.getElementById('costRcCard'), accSel = document.getElementById('costRcAccount');
-      const cv = cardSel.value, av = accSel.value;
+      const cardSel = document.getElementById('costRcCard');
+      const cv = cardSel.value, av = document.getElementById('costRcAccount').value;
       cardSel.innerHTML = `<option value="">결제카드 선택</option>` +
         costCards.map(c => `<option value="${c.id}">${svEsc(c.name)} (•••• ${svEsc(c.last4)})</option>`).join('') +
         `<option value="cash">현금 / 기타</option>`;
-      accSel.innerHTML = costItems.length === 0
-        ? `<option value="">업로드된 계정 없음 (설정 › 예산 업로드)</option>`
-        : `<option value="">비용 계정 선택</option>` + costItems.map((a, i) => `<option value="${a.id}">${i + 1}. ${svEsc(a.name)} [${COST_CONTROL_LABEL[a.control]}]</option>`).join('');
       if ([...cardSel.options].some(o => o.value === cv)) cardSel.value = cv;
-      if ([...accSel.options].some(o => o.value === av)) accSel.value = av;
+      // 계정은 검색 입력 방식 (선택값은 숨은 입력칸 costRcAccount 에 계정 id 로 저장)
+      if (av && !costItems.some(a => a.id === av)) costRcAccClear();
+    }
+    function costRcAccMatches(q) {
+      const t = (q || '').trim().toLowerCase().replace(/\s+/g, '');
+      return costItems.filter(a => !t || [a.name, a.code, a.deptName, ...a.controls.map(c => COST_CONTROL_LABEL[c])].join('|').toLowerCase().replace(/\s+/g, '').includes(t));
+    }
+    function costRcAccRender() {
+      const box = document.getElementById('costRcAccBox'), inp = document.getElementById('costRcAccountSearch');
+      const clr = document.getElementById('costRcAccClear');
+      clr.classList.toggle('hidden', !inp.value); clr.classList.toggle('flex', !!inp.value);
+      if (costItems.length === 0) { box.innerHTML = `<div class="px-3 py-3 text-xs text-gray-400">업로드된 계정이 없습니다. (설정 › 예산 업로드)</div>`; box.classList.remove('hidden'); return; }
+      const list = costRcAccMatches(inp.value);
+      const multiDept = new Set(costItems.map(a => a.deptCode)).size > 1;
+      const q = inp.value.trim();
+      const hl = t => { const e = svEsc(t); if (!q) return e; const i = t.toLowerCase().indexOf(q.toLowerCase()); return i < 0 ? e : svEsc(t.slice(0, i)) + '<strong class="text-[#007AFF]">' + svEsc(t.slice(i, i + q.length)) + '</strong>' + svEsc(t.slice(i + q.length)); };
+      box.innerHTML = list.length === 0
+        ? `<div class="px-3 py-3 text-xs text-gray-400">'${svEsc(q)}'에 해당하는 계정이 없습니다.</div>`
+        : list.slice(0, 40).map(a => `<div onmousedown="event.preventDefault();costRcAccPick('${a.id}')" class="px-3 py-2.5 active:bg-blue-50 cursor-pointer"><div class="text-[14px] font-semibold text-gray-900 truncate">${hl(a.name)}</div><div class="text-[11px] text-gray-500 font-mono truncate">${svEsc(a.code || '-')}${multiDept && a.deptName ? ' · ' + svEsc(a.deptName) : ''} · ${COST_CONTROL_LABEL[a.control]}</div></div>`).join('');
+      box.classList.remove('hidden');
+    }
+    function costRcAccHide() { const b = document.getElementById('costRcAccBox'); if (b) b.classList.add('hidden'); }
+    function costRcAccPick(id) {
+      const a = costItems.find(x => x.id === id); if (!a) return;
+      document.getElementById('costRcAccount').value = id;
+      document.getElementById('costRcAccountSearch').value = a.name;
+      costRcAccHide();
+      const clr = document.getElementById('costRcAccClear'); clr.classList.remove('hidden'); clr.classList.add('flex');
+    }
+    function costRcAccInput(v) {
+      document.getElementById('costRcAccount').value = '';
+      const exact = costItems.filter(a => a.name === (v || '').trim());
+      if (exact.length === 1) document.getElementById('costRcAccount').value = exact[0].id;   // 이름이 정확히 일치하면 자동 선택
+      costRcAccRender();
+    }
+    function costRcAccKey(e) {
+      if (e.key === 'Enter') { e.preventDefault(); const list = costRcAccMatches(e.target.value); if (list.length) costRcAccPick(list[0].id); }
+      else if (e.key === 'Escape') costRcAccHide();
+    }
+    function costRcAccClear() {
+      document.getElementById('costRcAccount').value = '';
+      document.getElementById('costRcAccountSearch').value = '';
+      const clr = document.getElementById('costRcAccClear'); clr.classList.add('hidden'); clr.classList.remove('flex');
+      costRcAccHide();
     }
     function costRcReset(withConfirmToast) {
       costRcPhotos = [];
@@ -6998,7 +7177,7 @@
       document.getElementById('costRcDate').value = costToday();
       ['costRcVendor', 'costRcTotal', 'costRcMemo'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('costRcCard').value = '';
-      document.getElementById('costRcAccount').value = '';
+      costRcAccClear();
       costRcCalc();
       if (withConfirmToast) showToastNotification('초기화', '입력한 내용이 초기화되었습니다.', 'info');
     }
@@ -7019,7 +7198,7 @@
       if (!vendor) { showIosAutoToast('거래처명을 입력해주세요.'); return; }
       if (total <= 0) { showIosAutoToast('합계금액을 입력해주세요.'); return; }
       if (!cardId) { showIosAutoToast('결제카드를 선택해주세요.'); return; }
-      if (!accId) { showIosAutoToast(costItems.length === 0 ? '비용 계정이 없습니다. 설정에서 예산을 업로드해주세요.' : '비용 계정을 선택해주세요.'); return; }
+      if (!accId) { showIosAutoToast(costItems.length === 0 ? '비용 계정이 없습니다. 설정에서 예산을 업로드해주세요.' : document.getElementById('costRcAccountSearch').value.trim() ? '추천 목록에서 비용 계정을 선택해주세요.' : '비용 계정을 선택해주세요.'); return; }
       const card = costCards.find(c => c.id === cardId);
       const acc = costItems.find(a => a.id === accId);
       const rec = {
@@ -7143,6 +7322,9 @@
       costRenderList();
       return costReceiptsLoad().then(() => { costRenderList(); costRenderHome(); });
     }
+    incidentLoadAll = trackLoadFn(incidentLoadAll);
+    palletLoadAll = trackLoadFn(palletLoadAll);
+    contactsLoadAll = trackLoadFn(contactsLoadAll);
     // 비용관리 진입 시 예산·카드·표시 설정·영수증을 Supabase에서 함께 불러옵니다.
     async function costReloadAll() {
       costReceiptsState = { status: 'loading', message: '' };
@@ -7151,6 +7333,8 @@
       costRenderHome(); costRenderList();
       if (!okB) showToastNotification('예산 불러오기 실패', costBudgetState.message, 'warning');
     }
+    costReloadAll = trackLoadFn(costReloadAll);
+    costReloadReceipts = trackLoadFn(costReloadReceipts);
     async function costToggleExclude(id) {
       const r = costReceipts.find(x => x.id === id);
       if (!r) return;
@@ -8264,3 +8448,4 @@
   </script>
 </body>
 </html>
+</body></html>
