@@ -26,6 +26,7 @@
       margin: 0;
       padding: 0;
       height: 100vh;
+      height: 100dvh;   /* 모바일 주소창/하단바를 제외한 실제 보이는 높이 */
       overflow: hidden;
     }
 
@@ -336,8 +337,22 @@
     button:not(:disabled):active, a[onclick]:active { transform: scale(.96); opacity: .85; }
     button:disabled { cursor: not-allowed; }
     .no-scrollbar, #mainScrollArea, main { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-    header { padding-top: calc(.75rem + env(safe-area-inset-top, 0px)); }
-    #homeFooterBar { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+    /* 노치/상태바/홈 인디케이터 영역(세이프 에어리어) 안으로 헤더·푸터·메뉴 이동 (Tailwind 유틸 클래스보다 우선하도록 !important) */
+    header {
+      padding-top: calc(.75rem + env(safe-area-inset-top, 0px)) !important;
+      padding-left: calc(1rem + env(safe-area-inset-left, 0px)) !important;
+      padding-right: calc(1rem + env(safe-area-inset-right, 0px)) !important;
+    }
+    #homeFooterBar {
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-left: calc(1rem + env(safe-area-inset-left, 0px)) !important;
+      padding-right: calc(1rem + env(safe-area-inset-right, 0px)) !important;
+    }
+    #menuDrawer { padding-left: env(safe-area-inset-left, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    #menuDrawer > div:first-child > div:first-child { padding-top: calc(2rem + env(safe-area-inset-top, 0px)) !important; }
+    #appShell { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+    #appShell > header { margin-left: calc(-1 * env(safe-area-inset-left, 0px)); margin-right: calc(-1 * env(safe-area-inset-right, 0px)); }
+    #appShell > #homeFooterBar { margin-left: calc(-1 * env(safe-area-inset-left, 0px)); margin-right: calc(-1 * env(safe-area-inset-right, 0px)); }
     #modalBox, #confirmModalBox, #activeNoticePopupBox, [id$="ModalBox"] { transition-timing-function: cubic-bezier(.32,.72,0,1) !important; transition-duration: .38s !important; }
     #menuDrawer { transition-timing-function: cubic-bezier(.32,.72,0,1) !important; transition-duration: .4s !important; }
     input:focus, textarea:focus { caret-color: #007AFF; }
@@ -1039,6 +1054,12 @@
               <button type="button" onclick="costDraftAll(false)" class="ios-btn-tap px-2.5 py-1.5 bg-gray-100 text-gray-700 font-semibold rounded-lg text-xs">전체 해제</button>
             </div>
           </div>
+          <div class="relative mb-2">
+            <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"></i>
+            <input type="search" id="costAccountSearch" oninput="costPickSearch(this.value)" placeholder="계정명 · 계정코드 · 부서 · 통제 검색" autocomplete="off" class="w-full pl-9 pr-9 py-2.5 bg-gray-100 rounded-xl text-[14px] font-medium border-2 border-transparent focus:border-[#007AFF] focus:bg-white outline-none transition-colors">
+            <button type="button" id="costAccountSearchClear" onclick="costPickSearch('', true)" aria-label="검색어 지우기" class="hidden absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-300 text-white items-center justify-center text-[11px]"><i class="ph-bold ph-x"></i></button>
+          </div>
+          <div id="costAccountSearchInfo" class="hidden text-[11.5px] text-gray-500 px-1 mb-1.5"></div>
           <div id="costAccountPickList" class="rounded-2xl border border-gray-200/80 divide-y divide-[#E5E5EA] overflow-hidden"></div>
           <div class="pt-3 mt-3 border-t border-gray-100">
             <button type="button" id="costSaveVisibleBtn" onclick="costSaveVisible()" class="ios-btn-tap w-full py-3 bg-[#007AFF] active:bg-[#0062CC] text-white font-semibold rounded-xl text-[14px] shadow-md shadow-blue-500/25 flex items-center justify-center space-x-1.5"><i class="ph-bold ph-floppy-disk text-base"></i><span id="costSaveVisibleLabel">저장</span></button>
@@ -2091,8 +2112,8 @@
     // [SUPABASE 연동 설정]
     // ==========================================
     // [테스트용 임시 프로젝트] 추후 삭제 예정. 운영 전에는 새 프로젝트 값으로 교체하세요.
-    const SUPABASE_URL = 'https://yfnwboangwvwbvifhxdl.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_wXLHbS12tzkL-F3Vy6gMAw_D-lNdwdo';
+    const SUPABASE_URL = 'https://xtelachpyghrfpdpayqe.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZWxhY2hweWdocmZwZHBheXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxNDAxODUsImV4cCI6MjEwODcxNjE4NX0.9bo0tBbFly28pNxom-oDx1PDBJdUtDk5i0sikwRTcDw';
 
     // [DEV 전용] 외부 접속이 막힌 환경(캔버스 미리보기 등)에서 네트워크 오류가 나면 샘플 데이터/시뮬레이션으로 동작합니다.
     // 배포(운영) 전에는 반드시 false 로 바꾸세요.
@@ -7298,6 +7319,8 @@
       });
       if (v === 'accounts') {
         costDraftViews = new Set(costViews);
+        costPickQuery = '';
+        { const _i = document.getElementById('costAccountSearch'); if (_i) _i.value = ''; }
         costRenderPickList();
       }
       if (v === 'upload') costUpdateBudgetStats();
@@ -7493,13 +7516,35 @@
     }
 
     // ---------- 계정 항목관리 ----------
+    let costPickQuery = '';
+    function costPickFiltered() {
+      const q = costPickQuery.trim().toLowerCase().replace(/\s+/g, '');
+      if (!q) return costItems;
+      return costItems.filter(a => {
+        const hay = [a.name, a.code, a.deptCode, a.deptName, ...a.controls.map(c => COST_CONTROL_LABEL[c])].join('|').toLowerCase().replace(/\s+/g, '');
+        return hay.includes(q);
+      });
+    }
+    function costPickSearch(v, refocus) {
+      costPickQuery = v || '';
+      const inp = document.getElementById('costAccountSearch');
+      if (inp && inp.value !== costPickQuery) inp.value = costPickQuery;
+      if (refocus && inp) inp.focus();
+      costRenderPickList();
+    }
     function costRenderPickList() {
       const list = document.getElementById('costAccountPickList');
+      const _shown = costPickFiltered();
+      const _clr = document.getElementById('costAccountSearchClear'), _info = document.getElementById('costAccountSearchInfo');
+      if (_clr) { _clr.classList.toggle('hidden', !costPickQuery); _clr.classList.toggle('flex', !!costPickQuery); }
+      if (_info) { _info.classList.toggle('hidden', !costPickQuery || costItems.length === 0); _info.textContent = `검색 결과 ${_shown.length}개 / 전체 ${costItems.length}개`; }
       if (costItems.length === 0) {
         list.innerHTML = `<div class="py-10 text-center text-xs text-gray-400">업로드된 계정이 없습니다.<br>먼저 '예산 업로드'를 진행해주세요.</div>`;
+      } else if (_shown.length === 0) {
+        list.innerHTML = `<div class="py-10 text-center text-xs text-gray-400">'${svEsc(costPickQuery)}'에 해당하는 계정이 없습니다.</div>`;
       } else {
         const multiDept = new Set(costItems.map(a => a.deptCode)).size > 1;
-        list.innerHTML = costItems.map(a => {
+        list.innerHTML = _shown.map(a => {
           const chips = COST_CONTROL_ORDER.map(c => {
             const on = costDraftViews.has(a.id + '|' + c);
             return `<button type="button" onclick="costDraftToggle('${a.id}','${c}')" aria-pressed="${on}" class="ios-btn-tap px-2.5 py-1 rounded-full text-[11.5px] font-bold border transition-colors ${on ? 'bg-[#007AFF] text-white border-[#007AFF]' : 'bg-white text-gray-600 border-gray-300'}">${COST_CONTROL_LABEL[c]}${a.controls.includes(c) ? '' : '<span class="opacity-50">*</span>'}</button>`;
@@ -7524,7 +7569,10 @@
       costRenderPickList();
     }
     function costDraftAll(on) {
-      costDraftViews = on ? new Set(costItems.map(a => a.id + '|' + a.control)) : new Set();
+      // 검색 중이면 검색된 계정에만 적용
+      const targets = costPickFiltered();
+      if (on) targets.forEach(a => costDraftViews.add(a.id + '|' + a.control));
+      else targets.forEach(a => COST_CONTROL_ORDER.forEach(c => costDraftViews.delete(a.id + '|' + c)));
       costRenderPickList();
     }
     function costSaveVisible() {
