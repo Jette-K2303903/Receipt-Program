@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -6312,10 +6313,24 @@
     // 지도(TMAP·카카오맵 등) 검색이 되도록 '건물번호'까지만 남기고 상세주소(층/호/상호/괄호/쉼표 뒤)를 제거합니다.
     //  예) 부산광역시 남구 수영로 298번지 21, 3층 (자체)301호(대연동,도네누) → 부산광역시 남구 수영로 298번지 21
     // ※ 지도 서비스에 실제로 조회하는 것은 아닙니다(브라우저에서 키 노출 없이 호출 불가) - 형식 기준 보정입니다.
+    // 띄어쓰기 보정: 울산광역시 남구삼산로277번길6-2 → 울산광역시 남구 삼산로 277번길 6-2
+    const ADDR_SIDO_FULL = '서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|강원도|충청북도|충청남도|전북특별자치도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주';
+    function addrFixSpacing(str) {
+      let a = String(str || '').replace(/\s+/g, ' ').trim();
+      a = a.replace(new RegExp('^(' + ADDR_SIDO_FULL + ')(?!특별시|광역시|특별자치시|특별자치도|도)(?=[가-힣])'), '$1 ');
+      const t = a.split(' ');
+      for (let i = 1; i < t.length && i <= 3; i++) {
+        const m = /^([가-힣]{1,5}?(?:시|군|구))(?=[가-힣0-9]*(?:로|길|동|읍|면|리))([가-힣0-9].*)$/.exec(t[i]);
+        if (m) { t.splice(i, 1, m[1], m[2]); }
+      }
+      a = t.join(' ');
+      a = a.replace(/([로길])(\d)/g, '$1 $2').replace(/(번길)(\d)/g, '$1 $2');
+      return a;
+    }
     function uploadCleanAddress(raw) {
       const orig = String(raw || '').replace(/\s+/g, ' ').trim();
       if (!orig) return { value: orig, changed: false };
-      let a = orig;
+      let a = addrFixSpacing(orig);
       let prev;
       do { prev = a; a = a.replace(/[(（][^()（）]*[)）]/g, ' '); } while (a !== prev);
       a = a.replace(/[(（].*$/, ' ');                 // 닫히지 않은 괄호
@@ -6668,17 +6683,17 @@
     //                 svSetAddressVerified(주소, true|false) 로 결과를 등록하면 형식 검사보다 우선 적용됩니다.
     const SV_ADDR_VERIFIED = new Map();
     function svSetAddressVerified(addr, ok) { SV_ADDR_VERIFIED.set((addr || '').trim(), !!ok); }
-    const SV_SIDO_RE = /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)(특별시|광역시|특별자치시|특별자치도|도)?$/;
+    const SV_SIDO_RE = new RegExp('^(' + ADDR_SIDO_FULL + ')(특별시|광역시|특별자치시|특별자치도|도)?$');
     function svCheckAddress(addr) {
-      const a = (addr || '').trim();
+      const a = addrFixSpacing(addr);
       if (!a) return { ok: false, reason: '주소 없음' };
-      if (SV_ADDR_VERIFIED.has(a)) return { ok: SV_ADDR_VERIFIED.get(a), reason: '지도 검색 결과' };
+      if (SV_ADDR_VERIFIED.has((addr || '').trim()) || SV_ADDR_VERIFIED.has(a)) return { ok: SV_ADDR_VERIFIED.get((addr || '').trim()) ?? SV_ADDR_VERIFIED.get(a), reason: '지도 검색 결과' };
       if (/[○●?？*]/.test(a)) return { ok: false, reason: '임시/불명확한 문자 포함' };
       const t = a.split(/\s+/);
-      if (t.length < 3) return { ok: false, reason: '주소가 너무 짧음' };
+      if (t.length < 3 && !/^세종/.test(t[0] || '')) return { ok: false, reason: '주소가 너무 짧음' };
       if (!SV_SIDO_RE.test(t[0])) return { ok: false, reason: '시/도 확인 필요' };
-      if (!t.slice(1).some(x => /[가-힣]+(시|군|구)$/.test(x))) return { ok: false, reason: '시/군/구 확인 필요' };
-      if (!t.slice(2).some(x => /[가-힣0-9]+(로|길|동|읍|면|리)$/.test(x))) return { ok: false, reason: '도로명/동 확인 필요' };
+      if (!/^세종/.test(t[0]) && !t.slice(1).some(x => /[가-힣]+(시|군|구)$/.test(x))) return { ok: false, reason: '시/군/구 확인 필요' };
+      if (!t.slice(/^세종/.test(t[0]) ? 1 : 2).some(x => /[가-힣0-9]+(로|길|동|읍|면|리)$/.test(x))) return { ok: false, reason: '도로명/동 확인 필요' };
       if (!/\d+(-\d+)?(번지)?$/.test(t[t.length - 1])) return { ok: false, reason: '번지/건물번호 확인 필요' };
       return { ok: true, reason: '' };
     }
@@ -8844,3 +8859,4 @@
   </script>
 </body>
 </html>
+</body></html>
