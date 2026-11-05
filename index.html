@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -6321,9 +6320,10 @@
       const t = a.split(' ');
       for (let i = 1; i < t.length && i <= 3; i++) {
         const m = /^([가-힣]{1,5}?(?:시|군|구))(?=[가-힣0-9]*(?:로|길|동|읍|면|리))([가-힣0-9].*)$/.exec(t[i]);
-        if (m) { t.splice(i, 1, m[1], m[2]); }
+        if (m && m[2].length >= 3) { t.splice(i, 1, m[1], m[2]); }   // 동대구로·화명신도시로 처럼 도로명 안의 구/시는 나누지 않음
       }
       a = t.join(' ');
+      a = a.replace(/([가-힣0-9]) (로|길)(?= |$)/g, '$1$2');          // 이전 버전이 잘못 나눈 '동대구 로' 복구
       a = a.replace(/([로길])(\d)/g, '$1 $2').replace(/(번길)(\d)/g, '$1 $2');
       return a;
     }
@@ -6726,7 +6726,7 @@
           storeCode: r.business_code || '-',
           storeName: r.business_name || '',
           seq: seqByDriver[dk],
-          address: r.address || '',
+          address: addrFixSpacing(r.address || ''),
           addressRaw: r.address_raw || '',
           departTime: r.depart_time || '',
           driverPhone: r.driver_phone || '',
@@ -8859,4 +8859,3 @@
   </script>
 </body>
 </html>
-</body></html>
