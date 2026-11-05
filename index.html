@@ -482,12 +482,12 @@
             </div>
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">작성자*</label>
-              <input type="text" id="author" placeholder="작성자" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="author" placeholder="홍길동" autocomplete="off" class="flex-1 font-medium text-[15px]">
               <div id="authorSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
             </div>
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">사유</label>
-              <input type="text" id="reason" placeholder="사유를 기입하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="reason" placeholder="파손, 오배송, 단순반품 등" autocomplete="off" class="flex-1 font-medium text-[15px]">
               
               <!-- 사유 자동완성/추천 목록 박스 -->
               <div id="reasonSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -503,7 +503,7 @@
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow overflow-visible relative">
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">매장명*</label>
-              <input type="text" id="storeName" placeholder="매장명을 입력하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="storeName" placeholder="예: 부산역점, 강남본점" autocomplete="off" class="flex-1 font-medium text-[15px]">
               
               <!-- 자동완성 목록 -->
               <div id="storeSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -546,7 +546,7 @@
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow overflow-visible relative">
             <div class="relative flex items-center px-4 py-3">
               <label class="w-24 text-[15px] font-normal text-[#3C3C43]/70">제품명*</label>
-              <input type="text" id="productName" placeholder="제품명을 입력하세요" autocomplete="off" class="flex-1 font-medium text-[15px]">
+              <input type="text" id="productName" placeholder="예: 유기농 우유 1L, 코카콜라" autocomplete="off" class="flex-1 font-medium text-[15px]">
 
               <!-- 제품명 자동완성 -->
               <div id="productSuggestBox" class="hidden absolute left-0 right-0 top-full mt-1.5 mx-2 bg-white/95 backdrop-blur-xl rounded-xl border border-gray-200/90 shadow-xl z-30 max-h-48 overflow-y-auto no-scrollbar divide-y divide-gray-100"></div>
@@ -595,9 +595,9 @@
 
         <!-- 섹션 4: 비고 / 상세내용 -->
         <div class="full-col-pc">
-          <div class="px-3 pb-1 text-[12px] font-medium text-gray-500 uppercase tracking-wider">상세내용</div>
+          <div class="px-3 pb-1 text-[12px] font-medium text-gray-500 uppercase tracking-wider">비고 / 상세내용</div>
           <div class="bg-white rounded-2xl border border-gray-200/80 ios-card-shadow p-3">
-            <textarea id="detailContent" rows="3" placeholder="상세내용을 자유롭게 입력해주세요" class="w-full text-[15px] resize-none leading-relaxed"></textarea>
+            <textarea id="detailContent" rows="3" placeholder="특이사항이나 입고 불량 내용 등을 자유롭게 입력해주세요." class="w-full text-[15px] resize-none leading-relaxed"></textarea>
           </div>
         </div>
 
@@ -1346,7 +1346,7 @@
             <span id="contactUploadStats" class="font-mono text-gray-400">0행 (0자)</span>
           </div>
           <div class="flex-1 relative bg-gray-50/90 rounded-2xl border border-gray-200 focus-within:border-indigo-500 focus-within:bg-white transition-all overflow-hidden p-3 shadow-inner">
-            <textarea id="contactUploadTextarea" rows="8" placeholder="예시:&#10;작성자&#09;010-1234-5678&#09;팀장&#10;이순신&#09;010-9876-5432&#09;과장" class="w-full h-full text-[13px] font-mono leading-relaxed resize-none text-gray-800 outline-none bg-transparent placeholder:text-gray-400"></textarea>
+            <textarea id="contactUploadTextarea" rows="8" placeholder="예시:&#10;홍길동&#09;010-1234-5678&#09;팀장&#10;이순신&#09;010-9876-5432&#09;과장" class="w-full h-full text-[13px] font-mono leading-relaxed resize-none text-gray-800 outline-none bg-transparent placeholder:text-gray-400"></textarea>
           </div>
         </div>
 
@@ -6268,7 +6268,7 @@
     // 업로드 양식 정의 (열 순서 = 엑셀에서 복사한 열 순서). k = DB 컬럼명, h = 엑셀 제목, t = 값 형식
     const UPLOAD_SPECS = {
       order: { label: '주문', table: 'order_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"client_code",h:"고객사코드",t:"code"},{k:"client_name",h:"고객사명",t:""},{k:"store_code",h:"거래처코드",t:"code",req:true},{k:"store_name",h:"거래처명",t:""},{k:"product_code",h:"제품코드",t:"code",req:true},{k:"product_name",h:"제품명",t:""},{k:"business_area",h:"사업영역",t:""},{k:"temperature",h:"온도",t:""},{k:"unit",h:"단위",t:""},{k:"item_designation",h:"품목지정",t:""},{k:"stock_type",h:"재고타입",t:""},{k:"order_qty",h:"주문수량",t:"num"},{k:"ship_qty",h:"출고수량",t:"num"}] },
-      dispatch: { label: '배차', table: 'dispatch_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"business_code",h:"사업자코드",t:"code",req:true},{k:"business_name",h:"사업장명",t:""},{k:"address",h:"주소",t:""},{k:"store_phone",h:"매장 전화번호",t:"phones"},{k:"vehicle_no",h:"차량번호",t:""},{k:"driver_name",h:"운전자명",t:""},{k:"driver_phone",h:"기사 전화번호",t:"phone"},{k:"region_type",h:"경남경북구분",t:""},{k:"coord_x",h:"좌표X",t:"num"},{k:"coord_y",h:"좌표Y",t:"num"},{k:"has_key",h:"열쇠유무",t:""},{k:"main_driver",h:"본코스 배송기사",t:""},{k:"main_driver_phone",h:"연락처",t:"phone"},{k:"main_center",h:"메인센터",t:""},{k:"vehicle_type",h:"차량구분",t:""},{k:"sms_template",h:"문자템플릿 양식",t:""},{k:"load_minutes",h:"상하차시간(분)",t:"int"}] }
+      dispatch: { label: '배차', table: 'dispatch_data', cols: [{k:"delivery_date",h:"배송일",t:"date",req:true},{k:"center_code",h:"센터",t:"code"},{k:"center_name",h:"센터명",t:""},{k:"business_code",h:"사업자코드",t:"code",req:true},{k:"business_name",h:"사업장명",t:""},{k:"address",h:"주소",t:"address"},{k:"store_phone",h:"매장 전화번호",t:"phones"},{k:"vehicle_no",h:"차량번호",t:""},{k:"driver_name",h:"운전자명",t:""},{k:"driver_phone",h:"기사 전화번호",t:"phone"},{k:"region_type",h:"경남경북구분",t:""},{k:"coord_x",h:"좌표X",t:"num"},{k:"coord_y",h:"좌표Y",t:"num"},{k:"has_key",h:"열쇠유무",t:""},{k:"main_driver",h:"본코스 배송기사",t:""},{k:"main_driver_phone",h:"연락처",t:"phone"},{k:"main_center",h:"메인센터",t:""},{k:"vehicle_type",h:"차량구분",t:""},{k:"sms_template",h:"문자템플릿 양식",t:""},{k:"load_minutes",h:"상하차시간(분)",t:"int"}] }
     };
 
     // ---------- 업로드 데이터 검증 / 변환 ----------
@@ -6308,10 +6308,56 @@
       if (cell !== '' || row.length) pushRow();
       return recs;
     }
+    // ---------- 배차 주소 자동 보정 ----------
+    // 지도(TMAP·카카오맵 등) 검색이 되도록 '건물번호'까지만 남기고 상세주소(층/호/상호/괄호/쉼표 뒤)를 제거합니다.
+    //  예) 부산광역시 남구 수영로 298번지 21, 3층 (자체)301호(대연동,도네누) → 부산광역시 남구 수영로 298번지 21
+    // ※ 지도 서비스에 실제로 조회하는 것은 아닙니다(브라우저에서 키 노출 없이 호출 불가) - 형식 기준 보정입니다.
+    function uploadCleanAddress(raw) {
+      const orig = String(raw || '').replace(/\s+/g, ' ').trim();
+      if (!orig) return { value: orig, changed: false };
+      let a = orig;
+      let prev;
+      do { prev = a; a = a.replace(/[(（][^()（）]*[)）]/g, ' '); } while (a !== prev);
+      a = a.replace(/[(（].*$/, ' ');                 // 닫히지 않은 괄호
+      a = a.split(/[,，;、]/)[0];                      // 쉼표 뒤는 상세주소
+      a = a.replace(/\s+/g, ' ').trim();
+      const t = a.split(' ');
+      const NUM = /^\d+(-\d+)?(번지)?$/;
+      const ROAD = /^[가-힣0-9]+(로|길)$/;
+      const ROADNUM = /^[가-힣0-9]*(로|길)\d+(-\d+)?$/;
+      let end = -1;
+      for (let i = 1; i < t.length && end < 0; i++) {
+        if (ROADNUM.test(t[i])) { end = i; break; }
+        if (ROAD.test(t[i]) || /^\d+번길$/.test(t[i])) {
+          let j = i + 1;
+          while (j < t.length && (/^\d+번길$/.test(t[j]) || ROAD.test(t[j]))) j++;
+          if (j < t.length && NUM.test(t[j])) {
+            end = j;
+            if (/번지$/.test(t[j]) && t[j + 1] && /^\d+(-\d+)?$/.test(t[j + 1])) end = j + 1;
+          }
+        }
+      }
+      if (end < 0) {                                   // 지번 주소: ○○동/리 123-4
+        for (let i = 2; i < t.length && end < 0; i++) {
+          if (/[가-힣0-9]+(동|리|읍|면|가)$/.test(t[i])) {
+            let j = i + 1;
+            if (t[j] === '산') j++;
+            if (j < t.length && NUM.test(t[j])) end = j;
+          }
+        }
+      }
+      if (end >= 0) a = t.slice(0, end + 1).join(' ');
+      else {                                           // 구조를 못 찾으면 끝의 층/호/동 표기만 제거
+        const DETAIL = /^(지하)?B?\d*(층|호|호실)$|^\d+동$|^제?\d+호$/;
+        while (t.length > 2 && DETAIL.test(t[t.length - 1])) t.pop();
+        a = t.join(' ');
+      }
+      return { value: a, changed: a !== orig };
+    }
     function uploadNormalize(kind, rawText) {
       const spec = UPLOAD_SPECS[kind], n = spec.cols.length;
       const rows = [], errors = [];
-      let header = false;
+      let header = false, adjusted = 0;
       uploadParseTsv(rawText).forEach(rec => {
         if (rec.cells.every(c => !String(c).trim())) return;
         const lineNo = rec.line;
@@ -6329,7 +6375,7 @@
           const fail = msg => { errors.push({ row: lineNo, col: c.h, msg, val: v }); bad = true; };
           if (v === '') {
             if (c.req) fail('값이 비어 있습니다');
-            obj[c.k] = null; if (c.t === 'phones') obj[c.k + '2'] = null; return;
+            obj[c.k] = null; if (c.t === 'phones') obj[c.k + '2'] = null; if (c.t === 'address') obj.address_raw = null; return;
           }
           if (c.t === 'date') { const d = uploadParseDate(v); if (!d) fail('날짜 형식이 올바르지 않습니다'); obj[c.k] = d; }
           else if (c.t === 'code') { if (!UPLOAD_CODE_RE.test(v)) fail('코드는 영문/숫자만 가능합니다'); obj[c.k] = v; }
@@ -6341,6 +6387,11 @@
             obj[c.k] = parts[0] || null;
             obj[c.k + '2'] = parts.length > 1 ? parts.slice(1).join(' / ') : null;
           }
+          else if (c.t === 'address') {
+            const cl = uploadCleanAddress(v);
+            obj[c.k] = cl.value; obj.address_raw = cl.changed ? v : null;
+            if (cl.changed) adjusted++;
+          }
           else if (c.t === 'num' || c.t === 'int') {
             const num = Number(v.replace(/,/g, ''));
             if (!isFinite(num) || (c.t === 'int' && !Number.isInteger(num))) fail(c.t === 'int' ? '정수만 가능합니다' : '숫자만 가능합니다');
@@ -6349,7 +6400,7 @@
         });
         if (!bad) rows.push(obj);
       });
-      return { rows, errors, header };
+      return { rows, errors, header, adjusted };
     }
     // 입력 오류 안내: 어느 행/열이 왜 틀렸는지 한눈에 보이도록 정리 (값은 따로 표시)
     function uploadShowErrors(label, errors) {
@@ -6373,7 +6424,7 @@
       const dot = document.getElementById('sbStatusDot'), txt = document.getElementById('sbStatusText');
       if (!dot || !txt) return;
       dot.className = `inline-block w-2 h-2 rounded-full ${supabaseClient ? 'bg-[#34C759]' : 'bg-[#FF9500]'}`;
-      txt.textContent = supabaseClient ? '연결 테스트로 확인' : 'Supabase 미설정 (테스트 모드)';
+      txt.textContent = supabaseClient ? 'Supabase 설정됨 · 연결 테스트로 확인' : 'Supabase 미설정 (테스트 모드)';
     }
     async function testSupabaseConnection() {
       if (!supabaseClient) {
@@ -6473,9 +6524,10 @@
       if (parsed.errors.length) { uploadShowErrors(label, parsed.errors); return; }
       if (parsed.rows.length === 0) { showModal('입력 확인', '업로드할 데이터 행이 없습니다.'); return; }
       const rows = parsed.rows;
+      const addrAdjusted = parsed.adjusted || 0;
       uploadInProgress = true;
       startUploadProgressAnim();
-      showProgressModal(color, `${label} 데이터 업로드 중`, supabaseClient ? '데이터를 저장하는 중입니다...' : '테스트 모드: Supabase 미연결 (저장 시뮬레이션)');
+      showProgressModal(color, `${label} 데이터 업로드 중`, supabaseClient ? 'Supabase에 데이터를 저장하는 중입니다...' : '테스트 모드: Supabase 미연결 (저장 시뮬레이션)');
       uploadTargetPercent = 8;
 
       try {
@@ -6510,7 +6562,10 @@
           }
         }
 
-        if (kind === 'dispatch' && typeof svApplyDispatchUpload === 'function') svApplyDispatchUpload(rows);
+        if (kind === 'dispatch') {
+          if (supabaseClient && !simulate) { try { await svLoadFromDb(true); } catch (e) { console.warn(e); } }
+          else if (typeof svApplyDispatchUpload === 'function') svApplyDispatchUpload(rows);
+        }
 
         uploadTargetPercent = 100;
         await waitUntilShown(100);
@@ -6530,7 +6585,7 @@
         uploadInProgress = false;
 
         await sleep(300);
-        showModal('저장 완료', `${label} 데이터가 성공적으로 저장되었습니다.`);
+        showModal('저장 완료', addrAdjusted ? { html: `${svEsc(label)} 데이터가 성공적으로 저장되었습니다.<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#FFF7E6;color:#8A5A00;font-size:12px;text-align:left">주소 <b>${addrAdjusted}건</b>은 지도 검색이 되도록 상세주소(층/호/상호 등)를 제외하고 저장했습니다. 원본은 DB(address_raw)에 보관됩니다.</div>` } : `${label} 데이터가 성공적으로 저장되었습니다.`);
       } catch (err) {
         console.error('업로드 오류:', err);
         stopUploadProgressAnim();
@@ -6571,6 +6626,7 @@
       document.getElementById('sectionVehicleViewArea').classList.remove('hidden');
       headerPageTitle.textContent = '구간차량 관리';
       switchSectionTab(currentSectionTab);
+      svLoadFromDb(false);
     }
 
     function switchSectionTab(tab) {
@@ -6639,18 +6695,16 @@
     // TODO(Supabase): '배차 데이터 업로드' 완료 시 구간차량 관리(홈화면)에 자동 매칭
     // 업로드 행(B~R열, 17개 컬럼)을 svRows 필드(센터명/기사명/차량번호/매장코드/매장명/순서/주소/시간/연락처)로 매핑하세요.
     let svDispatchDate = '';       // 업로드된 배차의 배송일 (YYYY-MM-DD)
-    // 배차 업로드 → 구간차량 관리 홈화면 자동 매칭
-    function svApplyDispatchUpload(uploadedRows) {
-      svInit();
-      const cnt = {};
-      uploadedRows.forEach(r => { if (r.delivery_date) cnt[r.delivery_date] = (cnt[r.delivery_date] || 0) + 1; });
-      svDispatchDate = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || '';
+    // 배차 DB 행(dispatch_data) / 업로드 행 → 화면 행
+    function svBuildRows(list) {
       const seqByDriver = {};
-      svRows = uploadedRows.map((r, i) => {
+      return list.map((r, i) => {
         const dk = (r.driver_name || '') + '|' + (r.vehicle_no || '');
         seqByDriver[dk] = (seqByDriver[dk] || 0) + 1;
+        const fmt = r.format_type || r.sms_template;
         const row = {
-          id: 'svr-u' + (i + 1),
+          id: 'svr-' + (r.id != null ? r.id : 'u' + (i + 1)),
+          dbId: r.id != null ? r.id : null,
           center: r.center_name || r.center_code || '',
           driver: r.driver_name || '',
           vehicleNo: r.vehicle_no || '',
@@ -6658,14 +6712,15 @@
           storeName: r.business_name || '',
           seq: seqByDriver[dk],
           address: r.address || '',
-          departTime: '',
+          addressRaw: r.address_raw || '',
+          departTime: r.depart_time || '',
           driverPhone: r.driver_phone || '',
           storePhone: r.store_phone || '',
           storePhone2: r.store_phone2 || '',
-          formatType: svTemplates.some(t => t.category === r.sms_template) ? r.sms_template : '미지정',
+          formatType: svTemplates.some(t => t.category === fmt) ? fmt : '미지정',
           completed: false,
           // 화면에는 표시하지 않지만 보관하는 업로드 항목
-          dispatchDate: r.delivery_date, centerCode: r.center_code, regionType: r.region_type,
+          dispatchDate: r.delivery_date, centerCode: r.center_code, centerName: r.center_name, regionType: r.region_type,
           coordX: r.coord_x, coordY: r.coord_y, hasKey: r.has_key,
           mainDriver: r.main_driver, mainDriverPhone: r.main_driver_phone, mainCenter: r.main_center,
           vehicleType: r.vehicle_type, uploadedTemplate: r.sms_template, loadMinutes: r.load_minutes
@@ -6673,15 +6728,78 @@
         row.saved = svSnapshot(row);
         return row;
       });
-      // 업로드에 등장한 센터가 주소록에 없으면 추가 (주소는 직접 입력 필요)
+    }
+    function svDominantDate(list) {
+      const cnt = {};
+      list.forEach(r => { if (r.delivery_date) cnt[r.delivery_date] = (cnt[r.delivery_date] || 0) + 1; });
+      return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || '';
+    }
+    // 업로드에 등장한 센터가 주소록에 없으면 추가 (주소는 직접 입력 필요)
+    async function svEnsureCenters(list) {
+      const names = [...new Set(list.map(r => r.center_name || r.center_code).filter(Boolean))].filter(n => !svCenters.some(c => c.name === n));
+      if (!names.length) return;
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient.from('logistics_centers')
+          .upsert(names.map(name => ({ name, address: '' })), { onConflict: 'name', ignoreDuplicates: true }).select();
+        if (!error) { await svLoadCenters(); return; }
+        console.warn('센터 자동 등록 실패', error);
+      }
+      names.forEach(name => svCenters.push({ id: 'ctr-u' + (svCenters.length + 1), name, address: '' }));
+    }
+    // Supabase 미연결 시(메모리 모드) 업로드 직후 화면에 반영
+    function svApplyDispatchUpload(uploadedRows) {
+      svInit();
+      svDispatchDate = svDominantDate(uploadedRows);
+      svRows = svBuildRows(uploadedRows);
       uploadedRows.forEach(r => {
         const name = r.center_name || r.center_code;
         if (name && !svCenters.some(c => c.name === name)) svCenters.push({ id: 'ctr-u' + (svCenters.length + 1), name, address: '' });
       });
-      svCheckedDrivers = new Set();
-      svSelectedCenter = '';
-      svListQuery = '';
+      svCheckedDrivers = new Set(); svSelectedCenter = ''; svListQuery = '';
       svRenderAll();
+    }
+    // 구간차량 관리 배차 내역 = 업로드 관리 > 배차 업로드(dispatch_data)의 가장 최근 배송일 기준
+    //  같은 날 여러 번 업로드한 경우: (센터, 매장코드)가 같으면 가장 나중에 업로드한 행만 사용
+    let svLoadedOnce = false;
+    async function svLoadFromDb(force) {
+      svInit();
+      if (!supabaseClient) return;
+      if (!force && svRows.some(svIsDirty)) return;      // 저장 안 한 수정이 있으면 덮어쓰지 않음
+      try {
+        const latest = await supabaseClient.from('dispatch_data').select('delivery_date').order('delivery_date', { ascending: false }).limit(1);
+        if (latest.error) throw latest.error;
+        const date = (latest.data && latest.data[0] && latest.data[0].delivery_date) || '';
+        const all = [];
+        if (date) {
+          for (let from = 0; from < 50000; from += 1000) {
+            const { data, error } = await supabaseClient.from('dispatch_data').select('*').eq('delivery_date', date).order('id').range(from, from + 999);
+            if (error) throw error;
+            all.push(...(data || []));
+            if (!data || data.length < 1000) break;
+          }
+        }
+        const latestBy = new Map();
+        all.forEach(r => latestBy.set((r.center_name || r.center_code || '') + '|' + r.business_code, r));
+        const list = [...latestBy.values()].sort((a, b) => a.id - b.id);
+        await svLoadCenters();
+        await svEnsureCenters(list);
+        svDispatchDate = date;
+        svRows = svBuildRows(list);
+        svCheckedDrivers = new Set();
+        if (svSelectedCenter && !svCenters.some(c => c.name === svSelectedCenter)) svSelectedCenter = '';
+        svLoadedOnce = true;
+        svRenderAll();
+      } catch (e) {
+        console.error('배차 내역 불러오기 오류:', e);
+        showToastNotification('배차 내역 불러오기 실패', dbErrorMessage(e), 'warning');
+      }
+    }
+    svLoadFromDb = trackLoadFn(svLoadFromDb);
+    async function svLoadCenters() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('logistics_centers').select('*').order('sort_order', { ascending: true }).order('name', { ascending: true });
+      if (error) throw error;
+      svCenters = (data || []).map(r => ({ id: r.id, name: r.name, address: r.address || '' }));
     }
 
     let svInitDone = false;
@@ -6702,7 +6820,7 @@
       if (svInitDone) return;
       svInitDone = true;
       // 예시 데이터 (실제 주소로 교체 필요)
-      svCenters = [
+      svCenters = supabaseClient ? [] : [
         { id: 'ctr-1', name: '영남 복합물류센터', address: '부산광역시 강서구 녹산산단 ○○로 12' },
         { id: 'ctr-2', name: '영남 제2물류센터', address: '부산광역시 사상구 ○○로 34' },
         { id: 'ctr-3', name: '동부산 허브센터', address: '부산광역시 기장군 ○○로 56' },
@@ -6759,7 +6877,7 @@
       }).join('');
     }
 
-    function svAddCenter() {
+    async function svAddCenter() {
       const nameEl = document.getElementById('svNewCenterName');
       const addrEl = document.getElementById('svNewCenterAddr');
       const name = nameEl.value.trim();
@@ -6772,8 +6890,16 @@
         showToastNotification('중복 센터', '이미 등록된 센터명입니다.', 'warning');
         return;
       }
-      // TODO(Supabase): centers 테이블 insert
-      svCenters.push({ id: 'ctr-' + Date.now(), name, address });
+      if (supabaseClient) {
+        let newRow = null;
+        const res = await dbRun('센터 등록', async () => {
+          const { data, error } = await supabaseClient.from('logistics_centers').insert({ name, address }).select().single();
+          if (error) throw error;
+          newRow = data;
+        });
+        if (!res.ok) return;
+        svCenters.push({ id: newRow.id, name: newRow.name, address: newRow.address || '' });
+      } else svCenters.push({ id: 'ctr-' + Date.now(), name, address });
       nameEl.value = '';
       addrEl.value = '';
       svRenderCenters();
@@ -6791,7 +6917,7 @@
       svEditingCenterId = null;
       svRenderCenters();
     }
-    function svSaveCenterEdit(id) {
+    async function svSaveCenterEdit(id) {
       const name = document.getElementById('svEditCenterName').value.trim();
       const address = document.getElementById('svEditCenterAddr').value.trim();
       if (!name || !address) {
@@ -6805,7 +6931,17 @@
       const target = svCenters.find(c => c.id === id);
       if (!target) return;
       const oldName = target.name;
-      // TODO(Supabase): centers 테이블 update
+      if (supabaseClient) {
+        const res = await dbRun('센터 수정', async () => {
+          const { error } = await supabaseClient.from('logistics_centers').update({ name, address, updated_at: new Date().toISOString() }).eq('id', id);
+          if (error) throw error;
+          if (oldName !== name) {       // 배차 내역의 센터명도 함께 변경
+            const e2 = await supabaseClient.from('dispatch_data').update({ center_name: name }).eq('center_name', oldName);
+            if (e2.error) throw e2.error;
+          }
+        });
+        if (!res.ok) return;
+      }
       target.name = name;
       target.address = address;
       if (oldName !== name) {
@@ -6819,8 +6955,14 @@
     function svDeleteCenter(id) {
       const target = svCenters.find(c => c.id === id);
       if (!target) return;
-      showConfirmModal(() => {
-        // TODO(Supabase): centers 테이블 delete
+      showConfirmModal(async () => {
+        if (supabaseClient) {
+          const res = await dbRun('센터 삭제', async () => {
+            const { error } = await supabaseClient.from('logistics_centers').delete().eq('id', id);
+            if (error) throw error;
+          });
+          if (!res.ok) return;
+        }
         svCenters = svCenters.filter(c => c.id !== id);
         if (svSelectedCenter === target.name) svSelectedCenter = '';
         if (svEditingCenterId === id) svEditingCenterId = null;
@@ -6882,8 +7024,20 @@
         return;
       }
       const center = svSelectedCenter;
-      showConfirmModal(() => {
-        // TODO(Supabase): 해당 센터 배차 내역 delete
+      showConfirmModal(async () => {
+        if (supabaseClient && svDispatchDate) {
+          const res = await dbRun('배차 삭제', async () => {
+            const pairs = new Map();
+            svRows.filter(r => r.center === center).forEach(r => pairs.set((r.centerName || '') + '|' + (r.centerCode || ''), r));
+            for (const r of pairs.values()) {
+              let q = supabaseClient.from('dispatch_data').delete().eq('delivery_date', svDispatchDate);
+              q = r.centerName ? q.eq('center_name', r.centerName) : q.is('center_name', null).eq('center_code', r.centerCode);
+              const { error } = await q;
+              if (error) throw error;
+            }
+          });
+          if (!res.ok) return;
+        }
         svRows = svRows.filter(r => r.center !== center);
         svCheckedDrivers = new Set([...svCheckedDrivers].filter(n => svDriversInView().some(d => d.name === n)));
         svRenderHeader(); svRenderChecklist(); svRenderTable();
@@ -6896,8 +7050,14 @@
         return;
       }
       const count = svRows.length;
-      showConfirmModal(() => {
-        // TODO(Supabase): 오늘자 배차 내역 전체 delete
+      showConfirmModal(async () => {
+        if (supabaseClient && svDispatchDate) {
+          const res = await dbRun('배차 삭제', async () => {
+            const { error } = await supabaseClient.from('dispatch_data').delete().eq('delivery_date', svDispatchDate);
+            if (error) throw error;
+          });
+          if (!res.ok) return;
+        }
         svRows = [];
         svCheckedDrivers.clear();
         svRenderHeader(); svRenderChecklist(); svRenderTable();
@@ -7098,18 +7258,34 @@
       }
       svUpdateSaveLabel();
     }
-    function svSaveAll() {
+    async function svSaveAll() {
       if (!svRequireLogin()) return;
       const dirty = svRows.filter(svIsDirty);
       if (dirty.length === 0) {
         showToastNotification('저장할 변경사항 없음', '변경된 내용이 없습니다.', 'info');
         return;
       }
-      // TODO(Supabase): dirty 행들의 수정 항목 upsert
-      dirty.forEach(r => { r.driver = r.driver.trim(); r.vehicleNo = r.vehicleNo.trim(); r.address = r.address.trim(); r.saved = svSnapshot(r); });
+      dirty.forEach(r => { r.driver = r.driver.trim(); r.vehicleNo = r.vehicleNo.trim(); r.address = r.address.trim(); });
+      let failed = 0;
+      if (supabaseClient) {
+        showBusy('저장 중...');
+        for (let n = 0; n < dirty.length; n += 6) {
+          await Promise.all(dirty.slice(n, n + 6).map(async r => {
+            if (r.dbId == null) { r.saved = svSnapshot(r); return; }
+            const { error } = await supabaseClient.from('dispatch_data').update({
+              driver_name: r.driver || null, vehicle_no: r.vehicleNo || null, address: r.address || null, depart_time: r.departTime || null,
+              driver_phone: r.driverPhone || null, store_phone: r.storePhone || null, store_phone2: r.storePhone2 || null,
+              format_type: r.formatType && r.formatType !== '미지정' ? r.formatType : null
+            }).eq('id', r.dbId);
+            if (error) { failed++; console.error('배차 저장 오류', error); r._err = error; } else r.saved = svSnapshot(r);
+          }));
+        }
+        hideBusy();
+        if (failed) { const e = dirty.find(r => r._err); showToastNotification('일부 저장 실패', `${failed}건 저장 실패: ${dbErrorMessage(e._err)}`, 'warning'); }
+      } else dirty.forEach(r => { r.saved = svSnapshot(r); });
       svRenderTable();
       svRenderSendList();
-      showToastNotification('저장 완료', `${dirty.length}건의 변경사항이 저장되었습니다.`, 'success');
+      if (!failed) showToastNotification('저장 완료', `${dirty.length}건의 변경사항이 저장되었습니다.`, 'success');
     }
 
     // ==========================================
@@ -8096,7 +8272,7 @@
         await settingsSave([{ key: 'cost_views', value: nextIdents }]);
       });
       hideBusy();
-      if (!res.ok) { costShowBudgetResult(false, '저장에 실패하여 예산이 적용되지 않았습니다. 알림 내용을 확인한 뒤 다시 시도해주세요.'); return; }
+      if (!res.ok) { costShowBudgetResult(false, 'Supabase 저장에 실패하여 예산이 적용되지 않았습니다. 알림 내용을 확인한 뒤 다시 시도해주세요.'); return; }
       costRows = yearRows; costItems = items; costFiscalYear = year; costViews = nextViews;
       costState.overrides = {};
       ta.value = '';
@@ -8104,7 +8280,7 @@
       const extraParts = [];
       if (skipped) extraParts.push(`${year}년이 아닌 ${skipped}행은 제외했습니다.`);
       if (errors.length) extraParts.push(`<span class="font-semibold">오류로 제외된 ${errors.length}행</span><br>${errors.slice(0, 5).map(svEsc).join('<br>')}${errors.length > 5 ? '<br>…' : ''}`);
-      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 저장되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
+      costShowBudgetResult(errors.length === 0, `${year}년 ${costRows.length}행 · ${items.length}개 계정이 Supabase에 저장되었습니다. 홈화면에 표시할 계정과 통제(분기/월/년)는 '계정 항목관리'에서 선택하세요.${extraParts.length ? '<br>' + extraParts.join('<br>') : ''}`);
       showToastNotification('예산 적용 완료', `${items.length}개 계정이 저장되었습니다.`, 'success');
     }
     function costResetBudget() {
