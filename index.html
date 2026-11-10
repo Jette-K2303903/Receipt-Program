@@ -2571,13 +2571,20 @@
     productNameInput.addEventListener('input', (e) => {
       const keyword = e.target.value.trim();
       clearTimeout(homeSearch.product.timer);
-      if (!keyword) { homeSearch.product.seq++; clearProductMatch(); return; }
+      if (!keyword) { homeSearch.product.seq++; clearProductMatch(); showProductHint(); return; }
       homeSearch.product.timer = setTimeout(() => runProductSearch(keyword), 250);
     });
-    productNameInput.addEventListener('focus', () => {
-      // 매장이 매칭된 상태에서 제품명을 비워 둔 채 누르면 그 매장의 주문 제품을 바로 추천
-      if (storeCodeInput.value.trim() && !productNameInput.value.trim()) runProductSearch('');
-    });
+    // 제품명 칸을 누르기만 해도(입력 전): 매장 선택됨 → 그 매장 주문 제품 추천 / 매장 미선택 → '전체 제품 조회' 안내
+    function showProductHint() {
+      if (productNameInput.value.trim()) return;
+      if (storeCodeInput.value.trim()) { runProductSearch(''); return; }
+      if (!supabaseClient) return;
+      homeSearch.product.seq++;
+      productSuggestBox.innerHTML = `<div class="px-4 py-2.5 text-[12px] text-[#007AFF] bg-blue-50">전체 제품 조회, 검색하고자 하는 제품을 입력해주세요.</div>`;
+      productSuggestBox.classList.remove('hidden');
+    }
+    productNameInput.addEventListener('focus', showProductHint);
+    productNameInput.addEventListener('click', showProductHint);
     productSuggestBox.addEventListener('click', (e) => {
       const itemEl = e.target.closest('[data-idx]');
       if (!itemEl) return;
